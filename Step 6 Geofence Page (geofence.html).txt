@@ -1,0 +1,1224 @@
+<!-- geofence.html -->
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geofence | Sarvam Automation GPS</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #e94560;
+            --primary-dark: #c73e54;
+            --sidebar-bg: #1a1a2e;
+            --sidebar-width: 260px;
+            --sidebar-collapsed: 70px;
+            --header-height: 65px;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --info: #3498db;
+            --offline: #95a5a6;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #f5f7fa;
+            color: #1a1a2e;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0; top: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--sidebar-bg);
+            z-index: 100;
+            transition: width 0.3s ease;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar.collapsed { width: var(--sidebar-collapsed); }
+
+        .sidebar-header {
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-header .logo-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, var(--primary), #ff6b6b);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header .logo-icon i { color: white; font-size: 18px; }
+
+        .sidebar-header .logo-text {
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            margin-left: 12px;
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s;
+        }
+
+        .sidebar.collapsed .logo-text { opacity: 0; width: 0; }
+
+        .nav-menu { padding: 15px 0; list-style: none; }
+
+        .nav-link {
+            display: flex; align-items: center;
+            padding: 14px 20px;
+            color: rgba(255,255,255,0.6);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+            cursor: pointer;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: white;
+            background: rgba(233,69,96,0.1);
+            border-left-color: var(--primary);
+        }
+
+        .nav-link i { width: 24px; text-align: center; font-size: 18px; flex-shrink: 0; }
+        .nav-link span { margin-left: 12px; white-space: nowrap; opacity: 1; transition: opacity 0.3s; font-size: 14px; }
+        .sidebar.collapsed .nav-link span { opacity: 0; width: 0; }
+
+        .nav-badge {
+            margin-left: auto;
+            background: var(--primary);
+            color: white;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            white-space: nowrap;
+        }
+
+        .sidebar.collapsed .nav-badge { display: none; }
+
+        .sidebar-footer {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            padding: 15px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .user-profile { display: flex; align-items: center; gap: 12px; }
+
+        .user-avatar {
+            width: 38px; height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), #ff6b6b);
+            display: flex; align-items: center; justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .user-info { white-space: nowrap; overflow: hidden; transition: opacity 0.3s; }
+        .sidebar.collapsed .user-info { opacity: 0; }
+        .user-info .name { color: white; font-size: 13px; font-weight: 600; }
+        .user-info .role { color: rgba(255,255,255,0.5); font-size: 11px; }
+
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .sidebar.collapsed ~ .main-content { margin-left: var(--sidebar-collapsed); }
+
+        .top-header {
+            height: var(--header-height);
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 25px;
+            position: sticky;
+            top: 0;
+            z-index: 99;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 20px; }
+
+        .toggle-sidebar {
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            border: none;
+            background: #f5f7fa;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: #1a1a2e;
+            transition: all 0.3s;
+        }
+
+        .toggle-sidebar:hover { background: var(--primary); color: white; }
+        .page-title { font-size: 20px; font-weight: 700; }
+
+        .header-right { display: flex; align-items: center; gap: 15px; }
+
+        .header-btn {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            border: none;
+            background: #f5f7fa;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: #6c757d;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .header-btn:hover { background: var(--primary); color: white; }
+
+        .header-btn .notification-dot {
+            position: absolute;
+            top: 8px; right: 8px;
+            width: 8px; height: 8px;
+            background: var(--danger);
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(233,69,96,0.3);
+        }
+
+        .btn-outline {
+            background: white;
+            color: #1a1a2e;
+            border: 1px solid #e9ecef;
+        }
+
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover { background: #27ae60; }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover { background: #c0392b; }
+
+        .page-content { padding: 25px; }
+
+        /* Geofence Layout */
+        .geofence-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 25px;
+            height: calc(100vh - var(--header-height) - 50px);
+        }
+
+        /* Geofence List Panel */
+        .geofence-panel {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .panel-header h2 { font-size: 18px; margin-bottom: 15px; }
+
+        .panel-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 14px;
+            outline: none;
+            background: #f8f9fa;
+            border: 1px solid transparent;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(233,69,96,0.1);
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .geofence-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .geofence-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .geofence-item.active {
+            border-color: var(--primary);
+            background: rgba(233,69,96,0.05);
+        }
+
+        .geofence-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .geofence-icon.circle { background: rgba(52,152,219,0.12); color: var(--info); }
+        .geofence-icon.polygon { background: rgba(155,89,182,0.12); color: #9b59b6; }
+        .geofence-icon.rectangle { background: rgba(46,204,113,0.12); color: var(--success); }
+
+        .geofence-info { flex: 1; }
+
+        .geofence-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 4px;
+        }
+
+        .geofence-meta {
+            font-size: 12px;
+            color: #6c757d;
+            display: flex;
+            gap: 12px;
+        }
+
+        .geofence-meta i { font-size: 10px; }
+
+        .geofence-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .geofence-status.active { background: var(--success); box-shadow: 0 0 0 3px rgba(46,204,113,0.3); }
+        .geofence-status.inactive { background: var(--offline); }
+
+        /* Map Area */
+        .map-container {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+            position: relative;
+        }
+
+        #map { width: 100%; height: 100%; border-radius: 20px; }
+
+        .map-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 500;
+        }
+
+        .map-control-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1a1a2e;
+            font-size: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+
+        .map-control-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .draw-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 500;
+        }
+
+        .draw-btn {
+            padding: 10px 18px;
+            border-radius: 12px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a1a2e;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+
+        .draw-btn:hover, .draw-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .draw-btn i { font-size: 14px; }
+
+        /* Geofence Detail Panel */
+        .geofence-detail {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            z-index: 500;
+            display: none;
+            max-width: 500px;
+        }
+
+        .geofence-detail.show { display: block; }
+
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .detail-header h3 { font-size: 18px; }
+
+        .detail-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-group { margin-bottom: 0; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6c757d;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(233,69,96,0.1);
+        }
+
+        .form-group.full { grid-column: 1 / -1; }
+
+        .detail-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .detail-actions .btn { flex: 1; justify-content: center; }
+
+        /* Alert Settings */
+        .alert-settings {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .alert-settings h4 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: #1a1a2e;
+        }
+
+        .alert-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .alert-option input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            transform: translateX(400px);
+            transition: transform 0.4s ease;
+        }
+
+        .toast.show { transform: translateX(0); }
+        .toast.success { background: var(--success); }
+        .toast.info { background: var(--info); }
+        .toast.error { background: var(--danger); }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .geofence-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .map-container { height: 400px; }
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon"><i class="fas fa-satellite-dish"></i></div>
+            <span class="logo-text">Sarvam GPS</span>
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a class="nav-link" href="dashboard.html">
+                    <i class="fas fa-th-large"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="live-tracking.html">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>Live Tracking</span>
+                    <span class="nav-badge">LIVE</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="vehicles.html">
+                    <i class="fas fa-car"></i>
+                    <span>All Vehicles</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="routes.html">
+                    <i class="fas fa-route"></i>
+                    <span>Route History</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="geofence.html">
+                    <i class="fas fa-draw-polygon"></i>
+                    <span>Geofence</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="alerts.html">
+                    <i class="fas fa-bell"></i>
+                    <span>Alerts</span>
+                    <span class="nav-badge">3</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="reports.html">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reports</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="drivers.html">
+                    <i class="fas fa-user-tie"></i>
+                    <span>Drivers</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="fuel.html">
+                    <i class="fas fa-gas-pump"></i>
+                    <span>Fuel Monitor</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="settings.html">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <div class="user-profile">
+                <div class="user-avatar" id="userAvatar">SA</div>
+                <div class="user-info">
+                    <div class="name" id="userName">Admin</div>
+                    <div class="role">Super Administrator</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="top-header">
+            <div class="header-left">
+                <button class="toggle-sidebar" id="toggleSidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Geofence Management</h1>
+            </div>
+            <div class="header-right">
+                <button class="header-btn" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-dot"></span>
+                </button>
+                <button class="header-btn" title="Logout" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="page-content">
+            <div class="geofence-layout">
+                <!-- Left Panel -->
+                <div class="geofence-panel">
+                    <div class="panel-header">
+                        <h2><i class="fas fa-map-marked-alt"></i> Geofences</h2>
+                        <div class="panel-actions">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" placeholder="Search geofence..." id="searchGeofence">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel-body" id="geofenceList">
+                        <!-- Dynamic content -->
+                    </div>
+                </div>
+
+                <!-- Map -->
+                <div class="map-container">
+                    <div id="map"></div>
+
+                    <div class="map-controls">
+                        <button class="map-control-btn" onclick="map.zoomIn()"><i class="fas fa-plus"></i></button>
+                        <button class="map-control-btn" onclick="map.zoomOut()"><i class="fas fa-minus"></i></button>
+                        <button class="map-control-btn" onclick="fitAllGeofences()"><i class="fas fa-expand"></i></button>
+                    </div>
+
+                    <div class="draw-controls">
+                        <button class="draw-btn" id="btnCircle" onclick="setDrawMode('circle')">
+                            <i class="fas fa-circle"></i> Circle
+                        </button>
+                        <button class="draw-btn" id="btnPolygon" onclick="setDrawMode('polygon')">
+                            <i class="fas fa-draw-polygon"></i> Polygon
+                        </button>
+                        <button class="draw-btn" id="btnRectangle" onclick="setDrawMode('rectangle')">
+                            <i class="fas fa-square"></i> Rectangle
+                        </button>
+                    </div>
+
+                    <!-- Geofence Detail Form -->
+                    <div class="geofence-detail" id="geofenceDetail">
+                        <div class="detail-header">
+                            <h3><i class="fas fa-draw-polygon"></i> Geofence Details</h3>
+                            <button class="btn btn-outline" onclick="closeDetail()" style="padding:8px 12px;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <div class="detail-form">
+                            <div class="form-group full">
+                                <label>Geofence Name</label>
+                                <input type="text" id="gfName" placeholder="e.g. Office Area">
+                            </div>
+                            <div class="form-group">
+                                <label>Type</label>
+                                <select id="gfType">
+                                    <option value="circle">Circle</option>
+                                    <option value="polygon">Polygon</option>
+                                    <option value="rectangle">Rectangle</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Radius (meters)</label>
+                                <input type="number" id="gfRadius" placeholder="500" value="500">
+                            </div>
+                            <div class="form-group full">
+                                <label>Description</label>
+                                <input type="text" id="gfDesc" placeholder="Optional description">
+                            </div>
+                        </div>
+
+                        <div class="alert-settings">
+                            <h4><i class="fas fa-bell"></i> Alert Settings</h4>
+                            <label class="alert-option">
+                                <input type="checkbox" checked> Entry Alert
+                            </label>
+                            <label class="alert-option">
+                                <input type="checkbox" checked> Exit Alert
+                            </label>
+                            <label class="alert-option">
+                                <input type="checkbox"> Speed Limit Alert
+                            </label>
+                        </div>
+
+                        <div class="detail-actions">
+                            <button class="btn btn-success" onclick="saveGeofence()">
+                                <i class="fas fa-check"></i> Save
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteGeofence()">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                            <button class="btn btn-outline" onclick="closeDetail()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // ============ AUTH ============
+        const token = localStorage.getItem('sarvam_token');
+        if (!token) window.location.href = 'login.html';
+
+        const user = JSON.parse(localStorage.getItem('sarvam_user') || '{}');
+        document.getElementById('userName').textContent = user.name || 'Admin';
+        document.getElementById('userAvatar').textContent = (user.name || 'A').charAt(0).toUpperCase();
+
+        // ============ SIDEBAR ============
+        const sidebar = document.getElementById('sidebar');
+        document.getElementById('toggleSidebar').addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('sarvam_token');
+            localStorage.removeItem('sarvam_user');
+            window.location.href = 'login.html';
+        });
+
+        // ============ MAP ============
+        let map, drawnItems, currentLayer = null, drawMode = null;
+        let geofences = [];
+        let selectedGeofenceId = null;
+
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView([23.0225, 72.5714], 12);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: 'Sarvam GPS',
+                maxZoom: 19
+            }).addTo(map);
+
+            drawnItems = L.featureGroup().addTo(map);
+
+            // Click on map to create geofence
+            map.on('click', function(e) {
+                if (drawMode === 'circle') {
+                    createCircleGeofence(e.latlng);
+                }
+            });
+        }
+
+        // ============ DEMO GEOFENCES ============
+        function loadDemoGeofences() {
+            geofences = [
+                {
+                    id: 'GF001',
+                    name: 'Office Zone',
+                    type: 'circle',
+                    lat: 23.0225,
+                    lng: 72.5714,
+                    radius: 500,
+                    description: 'Main office area',
+                    status: 'active',
+                    alerts: { entry: true, exit: true, speed: false }
+                },
+                {
+                    id: 'GF002',
+                    name: 'Warehouse Area',
+                    type: 'rectangle',
+                    lat: 23.035,
+                    lng: 72.55,
+                    radius: 800,
+                    description: 'Storage facility zone',
+                    status: 'active',
+                    alerts: { entry: true, exit: false, speed: true }
+                },
+                {
+                    id: 'GF003',
+                    name: 'Customer Zone A',
+                    type: 'polygon',
+                    lat: 23.01,
+                    lng: 72.59,
+                    radius: 300,
+                    description: 'VIP customer area',
+                    status: 'inactive',
+                    alerts: { entry: true, exit: true, speed: false }
+                },
+                {
+                    id: 'GF004',
+                    name: 'School Zone',
+                    type: 'circle',
+                    lat: 23.015,
+                    lng: 72.58,
+                    radius: 200,
+                    description: 'Speed limit 20km/h',
+                    status: 'active',
+                    alerts: { entry: false, exit: false, speed: true }
+                }
+            ];
+
+            renderGeofenceList();
+            renderGeofencesOnMap();
+        }
+
+        // ============ RENDER LIST ============
+        function renderGeofenceList() {
+            const list = document.getElementById('geofenceList');
+            const search = document.getElementById('searchGeofence').value.toLowerCase();
+
+            const filtered = geofences.filter(g => g.name.toLowerCase().includes(search));
+
+            list.innerHTML = filtered.map(g => `
+                <div class="geofence-item ${selectedGeofenceId === g.id ? 'active' : ''}" onclick="selectGeofence('${g.id}')">
+                    <div class="geofence-icon ${g.type}">
+                        <i class="fas fa-${g.type === 'circle' ? 'circle' : g.type === 'polygon' ? 'draw-polygon' : 'square'}"></i>
+                    </div>
+                    <div class="geofence-info">
+                        <div class="geofence-name">${g.name}</div>
+                        <div class="geofence-meta">
+                            <span><i class="fas fa-ruler"></i> ${g.radius}m</span>
+                            <span><i class="fas fa-map-marker-alt"></i> ${g.lat.toFixed(3)}, ${g.lng.toFixed(3)}</span>
+                        </div>
+                    </div>
+                    <div class="geofence-status ${g.status}"></div>
+                </div>
+            `).join('');
+        }
+
+        // ============ RENDER ON MAP ============
+        function renderGeofencesOnMap() {
+            drawnItems.clearLayers();
+
+            geofences.forEach(g => {
+                let layer;
+                const color = g.status === 'active' ? '#e94560' : '#95a5a6';
+
+                if (g.type === 'circle') {
+                    layer = L.circle([g.lat, g.lng], {
+                        radius: g.radius,
+                        color: color,
+                        fillColor: color,
+                        fillOpacity: 0.15,
+                        weight: 2
+                    });
+                } else if (g.type === 'rectangle') {
+                    const bounds = [
+                        [g.lat - 0.005, g.lng - 0.005],
+                        [g.lat + 0.005, g.lng + 0.005]
+                    ];
+                    layer = L.rectangle(bounds, {
+                        color: color,
+                        fillColor: color,
+                        fillOpacity: 0.15,
+                        weight: 2
+                    });
+                } else {
+                    const points = [
+                        [g.lat, g.lng],
+                        [g.lat + 0.008, g.lng + 0.003],
+                        [g.lat + 0.003, g.lng + 0.01],
+                        [g.lat - 0.005, g.lng + 0.005]
+                    ];
+                    layer = L.polygon(points, {
+                        color: color,
+                        fillColor: color,
+                        fillOpacity: 0.15,
+                        weight: 2
+                    });
+                }
+
+                layer.geofenceId = g.id;
+                layer.on('click', () => selectGeofence(g.id));
+                drawnItems.addLayer(layer);
+            });
+        }
+
+        // ============ SELECT GEOFENCE ============
+        function selectGeofence(id) {
+            selectedGeofenceId = id;
+            const g = geofences.find(ge => ge.id === id);
+            if (!g) return;
+
+            renderGeofenceList();
+
+            // Show detail panel
+            document.getElementById('geofenceDetail').classList.add('show');
+            document.getElementById('gfName').value = g.name;
+            document.getElementById('gfType').value = g.type;
+            document.getElementById('gfRadius').value = g.radius;
+            document.getElementById('gfDesc').value = g.description || '';
+
+            // Center map
+            map.setView([g.lat, g.lng], 14);
+        }
+
+        // ============ DRAW MODE ============
+        function setDrawMode(mode) {
+            drawMode = mode;
+            document.querySelectorAll('.draw-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
+
+            if (mode === 'circle') {
+                map.getContainer().style.cursor = 'crosshair';
+                showToast('Click on map to place circle geofence', 'info');
+            } else if (mode === 'polygon') {
+                showToast('Polygon drawing: Click multiple points, double-click to finish', 'info');
+                startPolygonDraw();
+            } else if (mode === 'rectangle') {
+                showToast('Rectangle drawing: Click and drag on map', 'info');
+                startRectangleDraw();
+            }
+        }
+
+        function createCircleGeofence(latlng) {
+            const id = 'GF' + String(geofences.length + 1).padStart(3, '0');
+            const newGeofence = {
+                id: id,
+                name: 'New Geofence ' + (geofences.length + 1),
+                type: 'circle',
+                lat: latlng.lat,
+                lng: latlng.lng,
+                radius: 500,
+                description: '',
+                status: 'active',
+                alerts: { entry: true, exit: true, speed: false }
+            };
+
+            geofences.push(newGeofence);
+            renderGeofencesOnMap();
+            selectGeofence(id);
+            drawMode = null;
+            map.getContainer().style.cursor = '';
+            document.querySelectorAll('.draw-btn').forEach(btn => btn.classList.remove('active'));
+            showToast('Circle geofence created! Edit details below.', 'success');
+        }
+
+        let polygonPoints = [];
+        let tempPolygon = null;
+
+        function startPolygonDraw() {
+            polygonPoints = [];
+            if (tempPolygon) map.removeLayer(tempPolygon);
+
+            map.on('click', onPolygonClick);
+            map.on('dblclick', onPolygonFinish);
+        }
+
+        function onPolygonClick(e) {
+            polygonPoints.push([e.latlng.lat, e.latlng.lng]);
+
+            if (tempPolygon) map.removeLayer(tempPolygon);
+            if (polygonPoints.length > 2) {
+                tempPolygon = L.polygon(polygonPoints, {
+                    color: '#e94560',
+                    fillColor: '#e94560',
+                    fillOpacity: 0.2,
+                    weight: 2,
+                    dashArray: '5, 5'
+                }).addTo(map);
+            }
+
+            // Add point marker
+            L.circleMarker(e.latlng, {
+                radius: 4,
+                color: '#e94560',
+                fillColor: '#e94560',
+                fillOpacity: 1
+            }).addTo(map);
+        }
+
+        function onPolygonFinish(e) {
+            map.off('click', onPolygonClick);
+            map.off('dblclick', onPolygonFinish);
+
+            if (polygonPoints.length < 3) {
+                showToast('Need at least 3 points for polygon', 'error');
+                return;
+            }
+
+            const center = polygonPoints.reduce((acc, p) => [acc[0] + p[0], acc[1] + p[1]], [0, 0]);
+            center[0] /= polygonPoints.length;
+            center[1] /= polygonPoints.length;
+
+            const id = 'GF' + String(geofences.length + 1).padStart(3, '0');
+            const newGeofence = {
+                id: id,
+                name: 'Polygon ' + (geofences.length + 1),
+                type: 'polygon',
+                lat: center[0],
+                lng: center[1],
+                radius: 300,
+                description: '',
+                status: 'active',
+                alerts: { entry: true, exit: true, speed: false }
+            };
+
+            geofences.push(newGeofence);
+            renderGeofencesOnMap();
+            selectGeofence(id);
+            drawMode = null;
+            document.querySelectorAll('.draw-btn').forEach(btn => btn.classList.remove('active'));
+            showToast('Polygon geofence created!', 'success');
+        }
+
+        function startRectangleDraw() {
+            let startPoint = null;
+            let tempRect = null;
+
+            map.on('mousedown', function(e) {
+                startPoint = e.latlng;
+            });
+
+            map.on('mousemove', function(e) {
+                if (!startPoint) return;
+                if (tempRect) map.removeLayer(tempRect);
+
+                const bounds = [
+                    [startPoint.lat, startPoint.lng],
+                    [e.latlng.lat, e.latlng.lng]
+                ];
+                tempRect = L.rectangle(bounds, {
+                    color: '#e94560',
+                    fillColor: '#e94560',
+                    fillOpacity: 0.2,
+                    weight: 2
+                }).addTo(map);
+            });
+
+            map.on('mouseup', function(e) {
+                if (!startPoint) return;
+
+                const bounds = [
+                    [startPoint.lat, startPoint.lng],
+                    [e.latlng.lat, e.latlng.lng]
+                ];
+
+                const center = [
+                    (startPoint.lat + e.latlng.lat) / 2,
+                    (startPoint.lng + e.latlng.lng) / 2
+                ];
+
+                const id = 'GF' + String(geofences.length + 1).padStart(3, '0');
+                const newGeofence = {
+                    id: id,
+                    name: 'Rectangle ' + (geofences.length + 1),
+                    type: 'rectangle',
+                    lat: center[0],
+                    lng: center[1],
+                    radius: 600,
+                    description: '',
+                    status: 'active',
+                    alerts: { entry: true, exit: true, speed: false }
+                };
+
+                geofences.push(newGeofence);
+                renderGeofencesOnMap();
+                selectGeofence(id);
+                drawMode = null;
+                startPoint = null;
+                document.querySelectorAll('.draw-btn').forEach(btn => btn.classList.remove('active'));
+                showToast('Rectangle geofence created!', 'success');
+            });
+        }
+
+        // ============ SAVE / DELETE ============
+        function saveGeofence() {
+            if (!selectedGeofenceId) return;
+
+            const g = geofences.find(ge => ge.id === selectedGeofenceId);
+            if (g) {
+                g.name = document.getElementById('gfName').value || g.name;
+                g.type = document.getElementById('gfType').value;
+                g.radius = parseInt(document.getElementById('gfRadius').value) || g.radius;
+                g.description = document.getElementById('gfDesc').value;
+
+                renderGeofenceList();
+                renderGeofencesOnMap();
+                showToast('Geofence saved successfully!', 'success');
+            }
+        }
+
+        function deleteGeofence() {
+            if (!selectedGeofenceId) return;
+
+            if (confirm('Are you sure you want to delete this geofence?')) {
+                geofences = geofences.filter(g => g.id !== selectedGeofenceId);
+                selectedGeofenceId = null;
+                closeDetail();
+                renderGeofenceList();
+                renderGeofencesOnMap();
+                showToast('Geofence deleted!', 'success');
+            }
+        }
+
+        function closeDetail() {
+            document.getElementById('geofenceDetail').classList.remove('show');
+            selectedGeofenceId = null;
+            renderGeofenceList();
+        }
+
+        function fitAllGeofences() {
+            if (drawnItems.getLayers().length > 0) {
+                map.fitBounds(drawnItems.getBounds().pad(0.1));
+            }
+        }
+
+        // ============ SEARCH ============
+        document.getElementById('searchGeofence').addEventListener('input', renderGeofenceList);
+
+        // ============ TOAST ============
+        function showToast(message, type) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i> ${message}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 400);
+            }, 3000);
+        }
+
+        // ============ INIT ============
+        initMap();
+        loadDemoGeofences();
+    </script>
+</body>
+</html>

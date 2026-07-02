@@ -1,0 +1,1165 @@
+<!-- routes.html -->
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route History | Sarvam Automation GPS</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #e94560;
+            --primary-dark: #c73e54;
+            --sidebar-bg: #1a1a2e;
+            --sidebar-width: 260px;
+            --sidebar-collapsed: 70px;
+            --header-height: 65px;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --info: #3498db;
+            --offline: #95a5a6;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #f5f7fa;
+            color: #1a1a2e;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0; top: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--sidebar-bg);
+            z-index: 100;
+            transition: width 0.3s ease;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar.collapsed { width: var(--sidebar-collapsed); }
+
+        .sidebar-header {
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-header .logo-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, var(--primary), #ff6b6b);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header .logo-icon i { color: white; font-size: 18px; }
+
+        .sidebar-header .logo-text {
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            margin-left: 12px;
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s;
+        }
+
+        .sidebar.collapsed .logo-text { opacity: 0; width: 0; }
+
+        .nav-menu { padding: 15px 0; list-style: none; }
+
+        .nav-link {
+            display: flex; align-items: center;
+            padding: 14px 20px;
+            color: rgba(255,255,255,0.6);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+            cursor: pointer;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: white;
+            background: rgba(233,69,96,0.1);
+            border-left-color: var(--primary);
+        }
+
+        .nav-link i { width: 24px; text-align: center; font-size: 18px; flex-shrink: 0; }
+        .nav-link span { margin-left: 12px; white-space: nowrap; opacity: 1; transition: opacity 0.3s; font-size: 14px; }
+        .sidebar.collapsed .nav-link span { opacity: 0; width: 0; }
+
+        .nav-badge {
+            margin-left: auto;
+            background: var(--primary);
+            color: white;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            white-space: nowrap;
+        }
+
+        .sidebar.collapsed .nav-badge { display: none; }
+
+        .sidebar-footer {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            padding: 15px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .user-profile { display: flex; align-items: center; gap: 12px; }
+
+        .user-avatar {
+            width: 38px; height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), #ff6b6b);
+            display: flex; align-items: center; justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .user-info { white-space: nowrap; overflow: hidden; transition: opacity 0.3s; }
+        .sidebar.collapsed .user-info { opacity: 0; }
+        .user-info .name { color: white; font-size: 13px; font-weight: 600; }
+        .user-info .role { color: rgba(255,255,255,0.5); font-size: 11px; }
+
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .sidebar.collapsed ~ .main-content { margin-left: var(--sidebar-collapsed); }
+
+        .top-header {
+            height: var(--header-height);
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 25px;
+            position: sticky;
+            top: 0;
+            z-index: 99;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 20px; }
+
+        .toggle-sidebar {
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            border: none;
+            background: #f5f7fa;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: #1a1a2e;
+            transition: all 0.3s;
+        }
+
+        .toggle-sidebar:hover { background: var(--primary); color: white; }
+        .page-title { font-size: 20px; font-weight: 700; }
+
+        .header-right { display: flex; align-items: center; gap: 15px; }
+
+        .header-btn {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            border: none;
+            background: #f5f7fa;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: #6c757d;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .header-btn:hover { background: var(--primary); color: white; }
+
+        .header-btn .notification-dot {
+            position: absolute;
+            top: 8px; right: 8px;
+            width: 8px; height: 8px;
+            background: var(--danger);
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(233,69,96,0.3);
+        }
+
+        .btn-outline {
+            background: white;
+            color: #1a1a2e;
+            border: 1px solid #e9ecef;
+        }
+
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+        .page-content { padding: 25px; }
+
+        /* Route Layout */
+        .route-layout {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 25px;
+            height: calc(100vh - var(--header-height) - 50px);
+        }
+
+        /* Left Panel */
+        .route-panel {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .panel-header h2 { font-size: 18px; margin-bottom: 15px; }
+
+        .vehicle-selector {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .vehicle-selector select {
+            width: 100%;
+            padding: 12px 40px 12px 15px;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 14px;
+            outline: none;
+            background: #f8f9fa;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+
+        .date-range {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .date-range input {
+            padding: 10px;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .route-summary {
+            background: linear-gradient(135deg, var(--primary), #ff6b6b);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+
+        .route-summary h3 {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 8px;
+        }
+
+        .route-summary .big-number {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .summary-item {
+            background: rgba(255,255,255,0.15);
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .summary-item .value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .summary-item .label {
+            font-size: 11px;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e9ecef;
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 25px;
+        }
+
+        .timeline-item:last-child { padding-bottom: 0; }
+
+        .timeline-dot {
+            position: absolute;
+            left: -26px;
+            top: 2px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 0 0 2px #e9ecef;
+        }
+
+        .timeline-dot.start { background: var(--success); box-shadow: 0 0 0 2px var(--success); }
+        .timeline-dot.stop { background: var(--danger); box-shadow: 0 0 0 2px var(--danger); }
+        .timeline-dot.idle { background: var(--warning); box-shadow: 0 0 0 2px var(--warning); }
+        .timeline-dot.checkpoint { background: var(--info); box-shadow: 0 0 0 2px var(--info); }
+
+        .timeline-content {
+            background: #f8f9fa;
+            padding: 14px;
+            border-radius: 12px;
+        }
+
+        .timeline-time {
+            font-size: 12px;
+            color: #6c757d;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .timeline-location {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 4px;
+        }
+
+        .timeline-detail {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .stops-section {
+            margin-top: 20px;
+        }
+
+        .stops-section h4 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: #1a1a2e;
+        }
+
+        .stop-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .stop-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .stop-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: var(--danger);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .stop-info { flex: 1; }
+
+        .stop-location {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+
+        .stop-duration {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+
+        .stop-time {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--danger);
+        }
+
+        /* Map Area */
+        .map-container {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+            position: relative;
+        }
+
+        #map { width: 100%; height: 100%; border-radius: 20px; }
+
+        .map-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 500;
+        }
+
+        .map-control-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1a1a2e;
+            font-size: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+
+        .map-control-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .playback-controls {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 12px 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 500;
+        }
+
+        .playback-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            background: var(--primary);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .playback-btn:hover {
+            transform: scale(1.1);
+            background: var(--primary-dark);
+        }
+
+        .playback-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .playback-slider {
+            width: 200px;
+            height: 6px;
+            -webkit-appearance: none;
+            background: #e9ecef;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .playback-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(233,69,96,0.4);
+        }
+
+        .playback-time {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a1a2e;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .speed-selector {
+            display: flex;
+            gap: 5px;
+        }
+
+        .speed-btn {
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+            background: white;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #6c757d;
+            transition: all 0.3s;
+        }
+
+        .speed-btn.active, .speed-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            transform: translateX(400px);
+            transition: transform 0.4s ease;
+        }
+
+        .toast.show { transform: translateX(0); }
+        .toast.success { background: var(--success); }
+        .toast.info { background: var(--info); }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .route-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .map-container { height: 400px; }
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon"><i class="fas fa-satellite-dish"></i></div>
+            <span class="logo-text">Sarvam GPS</span>
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a class="nav-link" href="dashboard.html">
+                    <i class="fas fa-th-large"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="live-tracking.html">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>Live Tracking</span>
+                    <span class="nav-badge">LIVE</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="vehicles.html">
+                    <i class="fas fa-car"></i>
+                    <span>All Vehicles</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="routes.html">
+                    <i class="fas fa-route"></i>
+                    <span>Route History</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="geofence.html">
+                    <i class="fas fa-draw-polygon"></i>
+                    <span>Geofence</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="alerts.html">
+                    <i class="fas fa-bell"></i>
+                    <span>Alerts</span>
+                    <span class="nav-badge">3</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="reports.html">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reports</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="drivers.html">
+                    <i class="fas fa-user-tie"></i>
+                    <span>Drivers</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="fuel.html">
+                    <i class="fas fa-gas-pump"></i>
+                    <span>Fuel Monitor</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="settings.html">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <div class="user-profile">
+                <div class="user-avatar" id="userAvatar">SA</div>
+                <div class="user-info">
+                    <div class="name" id="userName">Admin</div>
+                    <div class="role">Super Administrator</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="top-header">
+            <div class="header-left">
+                <button class="toggle-sidebar" id="toggleSidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Route History</h1>
+            </div>
+            <div class="header-right">
+                <button class="header-btn" title="Export" onclick="exportRoute()">
+                    <i class="fas fa-file-export"></i>
+                </button>
+                <button class="header-btn" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-dot"></span>
+                </button>
+                <button class="header-btn" title="Logout" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="page-content">
+            <div class="route-layout">
+                <!-- Left Panel -->
+                <div class="route-panel">
+                    <div class="panel-header">
+                        <h2><i class="fas fa-history"></i> Trip Details</h2>
+
+                        <div class="vehicle-selector">
+                            <select id="vehicleSelect" onchange="loadRoute()">
+                                <option value="">Select Vehicle</option>
+                            </select>
+                        </div>
+
+                        <div class="date-range">
+                            <input type="date" id="startDate" value="2026-06-29">
+                            <input type="date" id="endDate" value="2026-06-30">
+                        </div>
+                    </div>
+
+                    <div class="panel-body">
+                        <div class="route-summary" id="routeSummary" style="display:none;">
+                            <h3>Total Distance</h3>
+                            <div class="big-number" id="totalDistance">0 km</div>
+                            <div class="summary-grid">
+                                <div class="summary-item">
+                                    <div class="value" id="totalTime">0h 0m</div>
+                                    <div class="label">Duration</div>
+                                </div>
+                                <div class="summary-item">
+                                    <div class="value" id="avgSpeed">0</div>
+                                    <div class="label">Avg Speed</div>
+                                </div>
+                                <div class="summary-item">
+                                    <div class="value" id="maxSpeed">0</div>
+                                    <div class="label">Max Speed</div>
+                                </div>
+                                <div class="summary-item">
+                                    <div class="value" id="stopCount">0</div>
+                                    <div class="label">Stops</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timeline" id="timeline"></div>
+
+                        <div class="stops-section" id="stopsSection" style="display:none;">
+                            <h4><i class="fas fa-map-pin"></i> Stops</h4>
+                            <div id="stopsList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Map -->
+                <div class="map-container">
+                    <div id="map"></div>
+
+                    <div class="map-controls">
+                        <button class="map-control-btn" onclick="map.zoomIn()"><i class="fas fa-plus"></i></button>
+                        <button class="map-control-btn" onclick="map.zoomOut()"><i class="fas fa-minus"></i></button>
+                        <button class="map-control-btn" onclick="fitRoute()"><i class="fas fa-expand"></i></button>
+                        <button class="map-control-btn" onclick="toggleSatellite()"><i class="fas fa-satellite"></i></button>
+                    </div>
+
+                    <div class="playback-controls" id="playbackControls" style="display:none;">
+                        <button class="playback-btn" id="playBtn" onclick="togglePlayback()">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button class="playback-btn" onclick="resetPlayback()">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                        <input type="range" class="playback-slider" id="playbackSlider" min="0" max="100" value="0" oninput="seekPlayback(this.value)">
+                        <span class="playback-time" id="playbackTime">00:00</span>
+                        <div class="speed-selector">
+                            <button class="speed-btn active" onclick="setSpeed(1)">1x</button>
+                            <button class="speed-btn" onclick="setSpeed(2)">2x</button>
+                            <button class="speed-btn" onclick="setSpeed(5)">5x</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // ============ AUTH ============
+        const token = localStorage.getItem('sarvam_token');
+        if (!token) window.location.href = 'login.html';
+
+        const user = JSON.parse(localStorage.getItem('sarvam_user') || '{}');
+        document.getElementById('userName').textContent = user.name || 'Admin';
+        document.getElementById('userAvatar').textContent = (user.name || 'A').charAt(0).toUpperCase();
+
+        // ============ SIDEBAR ============
+        const sidebar = document.getElementById('sidebar');
+        document.getElementById('toggleSidebar').addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('sarvam_token');
+            localStorage.removeItem('sarvam_user');
+            window.location.href = 'login.html';
+        });
+
+        // ============ MAP ============
+        let map, routePolyline, movingMarker, startMarker, endMarker;
+        let routePoints = [];
+        let isPlaying = false;
+        let playbackInterval;
+        let currentPoint = 0;
+        let playbackSpeed = 1;
+        let satelliteMode = false;
+
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView([23.0225, 72.5714], 12);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: 'Sarvam GPS',
+                maxZoom: 19
+            }).addTo(map);
+        }
+
+        // ============ DEMO DATA ============
+        const vehicles = [
+            { id: 'VEH00001', name: 'Toyota Innova', number: 'GJ-01-AA-0001' },
+            { id: 'VEH00002', name: 'Tata Ace', number: 'GJ-02-BB-0002' },
+            { id: 'VEH00003', name: 'Mahindra Bolero', number: 'GJ-03-CC-0003' },
+            { id: 'VEH00004', name: 'Maruti Swift', number: 'GJ-04-DD-0004' },
+            { id: 'VEH00005', name: 'Honda Activa', number: 'GJ-05-EE-0005' }
+        ];
+
+        // Populate vehicle select
+        const select = document.getElementById('vehicleSelect');
+        vehicles.forEach(v => {
+            const option = document.createElement('option');
+            option.value = v.id;
+            option.textContent = `${v.name} (${v.number})`;
+            select.appendChild(option);
+        });
+
+        // URL param
+        const urlParams = new URLSearchParams(window.location.search);
+        const preselectVehicle = urlParams.get('vehicle');
+        if (preselectVehicle) {
+            select.value = preselectVehicle;
+            loadRoute();
+        }
+
+        // ============ GENERATE ROUTE ============
+        function generateRoutePoints() {
+            const points = [];
+            const baseLat = 23.0225;
+            const baseLng = 72.5714;
+            const numPoints = 50;
+
+            for (let i = 0; i < numPoints; i++) {
+                const angle = (i / numPoints) * Math.PI * 4;
+                const radius = 0.15 * (i / numPoints);
+                points.push({
+                    lat: baseLat + Math.cos(angle) * radius + (Math.random() - 0.5) * 0.02,
+                    lng: baseLng + Math.sin(angle) * radius + (Math.random() - 0.5) * 0.02,
+                    speed: Math.floor(Math.random() * 60) + 10,
+                    time: new Date(2026, 5, 29, 8, i * 3, 0),
+                    status: i % 10 === 0 ? 'stop' : 'moving'
+                });
+            }
+            return points;
+        }
+
+        function generateStops() {
+            return [
+                { location: 'SG Highway, Ahmedabad', duration: '15 min', time: '08:30 AM', lat: 23.035, lng: 72.510 },
+                { location: 'Ashram Road, Ahmedabad', duration: '25 min', time: '09:45 AM', lat: 23.030, lng: 72.580 },
+                { location: 'Maninagar, Ahmedabad', duration: '10 min', time: '11:20 AM', lat: 23.000, lng: 72.600 },
+                { location: 'Bopal, Ahmedabad', duration: '30 min', time: '01:15 PM', lat: 23.010, lng: 72.480 }
+            ];
+        }
+
+        // ============ LOAD ROUTE ============
+        function loadRoute() {
+            const vehicleId = document.getElementById('vehicleSelect').value;
+            if (!vehicleId) return;
+
+            routePoints = generateRoutePoints();
+            const stops = generateStops();
+
+            // Clear previous
+            if (routePolyline) map.removeLayer(routePolyline);
+            if (movingMarker) map.removeLayer(movingMarker);
+            if (startMarker) map.removeLayer(startMarker);
+            if (endMarker) map.removeLayer(endMarker);
+
+            // Draw route
+            const latlngs = routePoints.map(p => [p.lat, p.lng]);
+            routePolyline = L.polyline(latlngs, {
+                color: '#e94560',
+                weight: 4,
+                opacity: 0.8,
+                lineCap: 'round',
+                lineJoin: 'round'
+            }).addTo(map);
+
+            // Start and end markers
+            const startIcon = L.divIcon({
+                className: 'custom-marker',
+                html: '<div style="background:#2ecc71;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:12px;border:3px solid white;box-shadow:0 2px 8px rgba(46,204,113,0.4);"><i class="fas fa-play"></i></div>',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+
+            const endIcon = L.divIcon({
+                className: 'custom-marker',
+                html: '<div style="background:#e74c3c;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:12px;border:3px solid white;box-shadow:0 2px 8px rgba(231,76,60,0.4);"><i class="fas fa-flag"></i></div>',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+
+            startMarker = L.marker([routePoints[0].lat, routePoints[0].lng], { icon: startIcon }).addTo(map);
+            endMarker = L.marker([routePoints[routePoints.length - 1].lat, routePoints[routePoints.length - 1].lng], { icon: endIcon }).addTo(map);
+
+            // Moving marker
+            const movingIcon = L.divIcon({
+                className: 'custom-marker',
+                html: '<div style="background:#e94560;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;border:3px solid white;box-shadow:0 3px 12px rgba(233,69,96,0.4);"><i class="fas fa-car"></i></div>',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+
+            movingMarker = L.marker([routePoints[0].lat, routePoints[0].lng], { icon: movingIcon }).addTo(map);
+
+            // Fit bounds
+            map.fitBounds(routePolyline.getBounds().pad(0.1));
+
+            // Show summary
+            const totalDist = calculateDistance(routePoints);
+            const totalTime = routePoints[routePoints.length - 1].time - routePoints[0].time;
+            const hours = Math.floor(totalTime / 3600000);
+            const minutes = Math.floor((totalTime % 3600000) / 60000);
+            const speeds = routePoints.map(p => p.speed);
+            const avgSpeed = Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length);
+            const maxSpeed = Math.max(...speeds);
+
+            document.getElementById('routeSummary').style.display = 'block';
+            document.getElementById('totalDistance').textContent = totalDist.toFixed(1) + ' km';
+            document.getElementById('totalTime').textContent = `${hours}h ${minutes}m`;
+            document.getElementById('avgSpeed').textContent = avgSpeed + ' km/h';
+            document.getElementById('maxSpeed').textContent = maxSpeed + ' km/h';
+            document.getElementById('stopCount').textContent = stops.length;
+
+            // Show timeline
+            renderTimeline(routePoints);
+
+            // Show stops
+            document.getElementById('stopsSection').style.display = 'block';
+            document.getElementById('stopsList').innerHTML = stops.map((s, i) => `
+                <div class="stop-item" onclick="focusStop(${s.lat}, ${s.lng})">
+                    <div class="stop-icon"><i class="fas fa-hand-paper"></i></div>
+                    <div class="stop-info">
+                        <div class="stop-location">${s.location}</div>
+                        <div class="stop-duration"><i class="fas fa-clock"></i> ${s.duration}</div>
+                    </div>
+                    <div class="stop-time">${s.time}</div>
+                </div>
+            `).join('');
+
+            // Show playback controls
+            document.getElementById('playbackControls').style.display = 'flex';
+            document.getElementById('playbackSlider').max = routePoints.length - 1;
+            document.getElementById('playbackSlider').value = 0;
+            currentPoint = 0;
+        }
+
+        function calculateDistance(points) {
+            let dist = 0;
+            for (let i = 1; i < points.length; i++) {
+                const d = Math.sqrt(
+                    Math.pow(points[i].lat - points[i-1].lat, 2) +
+                    Math.pow(points[i].lng - points[i-1].lng, 2)
+                );
+                dist += d * 111;
+            }
+            return dist;
+        }
+
+        function renderTimeline(points) {
+            const timeline = document.getElementById('timeline');
+            const keyPoints = points.filter((p, i) => i === 0 || i === points.length - 1 || i % 10 === 0);
+
+            timeline.innerHTML = keyPoints.map((p, i) => {
+                const isStart = i === 0;
+                const isEnd = i === keyPoints.length - 1;
+                const dotClass = isStart ? 'start' : isEnd ? 'stop' : p.status === 'stop' ? 'idle' : 'checkpoint';
+
+                return `
+                    <div class="timeline-item">
+                        <div class="timeline-dot ${dotClass}"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-time">${p.time.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'})}</div>
+                            <div class="timeline-location">${isStart ? 'Trip Started' : isEnd ? 'Trip Ended' : 'Checkpoint ' + i}</div>
+                            <div class="timeline-detail">Speed: ${p.speed} km/h | Lat: ${p.lat.toFixed(4)}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function focusStop(lat, lng) {
+            map.setView([lat, lng], 16);
+        }
+
+        function fitRoute() {
+            if (routePolyline) {
+                map.fitBounds(routePolyline.getBounds().pad(0.1));
+            }
+        }
+
+        function toggleSatellite() {
+            satelliteMode = !satelliteMode;
+            map.eachLayer(layer => {
+                if (layer instanceof L.TileLayer) map.removeLayer(layer);
+            });
+
+            if (satelliteMode) {
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Sarvam GPS',
+                    maxZoom: 19
+                }).addTo(map);
+            } else {
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: 'Sarvam GPS',
+                    maxZoom: 19
+                }).addTo(map);
+            }
+        }
+
+        // ============ PLAYBACK ============
+        function togglePlayback() {
+            const btn = document.getElementById('playBtn');
+            if (isPlaying) {
+                clearInterval(playbackInterval);
+                isPlaying = false;
+                btn.innerHTML = '<i class="fas fa-play"></i>';
+            } else {
+                isPlaying = true;
+                btn.innerHTML = '<i class="fas fa-pause"></i>';
+                playbackInterval = setInterval(() => {
+                    if (currentPoint >= routePoints.length - 1) {
+                        resetPlayback();
+                        return;
+                    }
+                    currentPoint++;
+                    updatePlayback();
+                }, 200 / playbackSpeed);
+            }
+        }
+
+        function resetPlayback() {
+            clearInterval(playbackInterval);
+            isPlaying = false;
+            currentPoint = 0;
+            document.getElementById('playBtn').innerHTML = '<i class="fas fa-play"></i>';
+            updatePlayback();
+        }
+
+        function updatePlayback() {
+            const p = routePoints[currentPoint];
+            movingMarker.setLatLng([p.lat, p.lng]);
+            document.getElementById('playbackSlider').value = currentPoint;
+            document.getElementById('playbackTime').textContent = p.time.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
+        }
+
+        function seekPlayback(value) {
+            currentPoint = parseInt(value);
+            updatePlayback();
+        }
+
+        function setSpeed(speed) {
+            playbackSpeed = speed;
+            document.querySelectorAll('.speed-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            if (isPlaying) {
+                clearInterval(playbackInterval);
+                playbackInterval = setInterval(() => {
+                    if (currentPoint >= routePoints.length - 1) {
+                        resetPlayback();
+                        return;
+                    }
+                    currentPoint++;
+                    updatePlayback();
+                }, 200 / playbackSpeed);
+            }
+        }
+
+        function exportRoute() {
+            showToast('Route exported to PDF!', 'success');
+        }
+
+        function showToast(message, type) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'}"></i> ${message}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 400);
+            }, 3000);
+        }
+
+        // ============ INIT ============
+        initMap();
+    </script>
+</body>
+</html>

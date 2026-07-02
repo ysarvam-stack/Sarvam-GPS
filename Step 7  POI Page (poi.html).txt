@@ -1,0 +1,1366 @@
+<!-- poi.html -->
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POI | Sarvam Automation GPS</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #e94560;
+            --primary-dark: #c73e54;
+            --sidebar-bg: #1a1a2e;
+            --sidebar-width: 260px;
+            --sidebar-collapsed: 70px;
+            --header-height: 65px;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --info: #3498db;
+            --offline: #95a5a6;
+            --poi-office: #9b59b6;
+            --poi-fuel: #e67e22;
+            --poi-rest: #1abc9c;
+            --poi-customer: #3498db;
+            --poi-warehouse: #e74c3c;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #f5f7fa;
+            color: #1a1a2e;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0; top: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--sidebar-bg);
+            z-index: 100;
+            transition: width 0.3s ease;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar.collapsed { width: var(--sidebar-collapsed); }
+
+        .sidebar-header {
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-header .logo-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, var(--primary), #ff6b6b);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header .logo-icon i { color: white; font-size: 18px; }
+
+        .sidebar-header .logo-text {
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            margin-left: 12px;
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s;
+        }
+
+        .sidebar.collapsed .logo-text { opacity: 0; width: 0; }
+
+        .nav-menu { padding: 15px 0; list-style: none; }
+
+        .nav-link {
+            display: flex; align-items: center;
+            padding: 14px 20px;
+            color: rgba(255,255,255,0.6);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+            cursor: pointer;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: white;
+            background: rgba(233,69,96,0.1);
+            border-left-color: var(--primary);
+        }
+
+        .nav-link i { width: 24px; text-align: center; font-size: 18px; flex-shrink: 0; }
+        .nav-link span { margin-left: 12px; white-space: nowrap; opacity: 1; transition: opacity 0.3s; font-size: 14px; }
+        .sidebar.collapsed .nav-link span { opacity: 0; width: 0; }
+
+        .nav-badge {
+            margin-left: auto;
+            background: var(--primary);
+            color: white;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            white-space: nowrap;
+        }
+
+        .sidebar.collapsed .nav-badge { display: none; }
+
+        .sidebar-footer {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            padding: 15px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .user-profile { display: flex; align-items: center; gap: 12px; }
+
+        .user-avatar {
+            width: 38px; height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), #ff6b6b);
+            display: flex; align-items: center; justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .user-info { white-space: nowrap; overflow: hidden; transition: opacity 0.3s; }
+        .sidebar.collapsed .user-info { opacity: 0; }
+        .user-info .name { color: white; font-size: 13px; font-weight: 600; }
+        .user-info .role { color: rgba(255,255,255,0.5); font-size: 11px; }
+
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .sidebar.collapsed ~ .main-content { margin-left: var(--sidebar-collapsed); }
+
+        .top-header {
+            height: var(--header-height);
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 25px;
+            position: sticky;
+            top: 0;
+            z-index: 99;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 20px; }
+
+        .toggle-sidebar {
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            border: none;
+            background: #f5f7fa;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: #1a1a2e;
+            transition: all 0.3s;
+        }
+
+        .toggle-sidebar:hover { background: var(--primary); color: white; }
+        .page-title { font-size: 20px; font-weight: 700; }
+
+        .header-right { display: flex; align-items: center; gap: 15px; }
+
+        .header-btn {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            border: none;
+            background: #f5f7fa;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: #6c757d;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .header-btn:hover { background: var(--primary); color: white; }
+
+        .header-btn .notification-dot {
+            position: absolute;
+            top: 8px; right: 8px;
+            width: 8px; height: 8px;
+            background: var(--danger);
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(233,69,96,0.3);
+        }
+
+        .btn-outline {
+            background: white;
+            color: #1a1a2e;
+            border: 1px solid #e9ecef;
+        }
+
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover { background: #27ae60; }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover { background: #c0392b; }
+
+        .page-content { padding: 25px; }
+
+        /* POI Layout */
+        .poi-layout {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 25px;
+            height: calc(100vh - var(--header-height) - 50px);
+        }
+
+        /* POI Categories */
+        .poi-panel {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .panel-header h2 { font-size: 18px; margin-bottom: 15px; }
+
+        .poi-categories {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .poi-cat-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid #e9ecef;
+            background: white;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s;
+        }
+
+        .poi-cat-btn:hover, .poi-cat-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .poi-cat-btn i { font-size: 12px; }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 11px 15px 11px 42px;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 14px;
+            outline: none;
+            background: #f8f9fa;
+            border: 1px solid transparent;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(233,69,96,0.1);
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .poi-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .poi-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .poi-item.active {
+            border-color: var(--primary);
+            background: rgba(233,69,96,0.05);
+        }
+
+        .poi-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+            color: white;
+        }
+
+        .poi-icon.office { background: var(--poi-office); }
+        .poi-icon.fuel { background: var(--poi-fuel); }
+        .poi-icon.rest { background: var(--poi-rest); }
+        .poi-icon.customer { background: var(--poi-customer); }
+        .poi-icon.warehouse { background: var(--poi-warehouse); }
+
+        .poi-info { flex: 1; }
+
+        .poi-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 4px;
+        }
+
+        .poi-meta {
+            font-size: 12px;
+            color: #6c757d;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .poi-meta i { font-size: 10px; }
+
+        .poi-distance {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* Map Area */
+        .map-container {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+            position: relative;
+        }
+
+        #map { width: 100%; height: 100%; border-radius: 20px; }
+
+        .map-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 500;
+        }
+
+        .map-control-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1a1a2e;
+            font-size: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+
+        .map-control-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .add-poi-btn {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            z-index: 500;
+            padding: 14px 24px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 8px 25px rgba(233,69,96,0.3);
+            transition: all 0.3s;
+        }
+
+        .add-poi-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(233,69,96,0.4);
+        }
+
+        /* POI Detail Popup */
+        .poi-popup {
+            position: absolute;
+            bottom: 25px;
+            left: 25px;
+            right: 25px;
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            z-index: 500;
+            display: none;
+            max-width: 450px;
+        }
+
+        .poi-popup.show { display: block; }
+
+        .popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .popup-header h3 { font-size: 18px; }
+
+        .popup-close {
+            width: 32px; height: 32px;
+            border-radius: 10px;
+            border: none;
+            background: #f5f7fa;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+        }
+
+        .popup-close:hover { background: var(--danger); color: white; }
+
+        .popup-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .popup-field {
+            background: #f8f9fa;
+            padding: 14px;
+            border-radius: 12px;
+        }
+
+        .popup-field label {
+            font-size: 11px;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .popup-field value {
+            display: block;
+            font-size: 15px;
+            font-weight: 700;
+            margin-top: 6px;
+            color: #1a1a2e;
+        }
+
+        .popup-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .popup-actions .btn { flex: 1; justify-content: center; }
+
+        /* Add POI Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .modal-overlay.show { opacity: 1; pointer-events: all; }
+
+        .modal {
+            background: white;
+            border-radius: 24px;
+            width: 500px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+
+        .modal-overlay.show .modal { transform: scale(1); }
+
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 20px; }
+
+        .modal-close {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            border: none;
+            background: #f5f7fa;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+        }
+
+        .modal-close:hover { background: var(--danger); color: white; }
+
+        .modal-body { padding: 24px; }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-group { margin-bottom: 20px; }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s;
+            background: #f8f9fa;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(233,69,96,0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-group.full { grid-column: 1 / -1; }
+
+        .color-picker {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .color-option {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .color-option:hover { transform: scale(1.1); }
+        .color-option.selected {
+            border-color: #1a1a2e;
+            box-shadow: 0 0 0 2px white, 0 0 0 4px #1a1a2e;
+        }
+
+        .modal-footer {
+            padding: 20px 24px;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            transform: translateX(400px);
+            transition: transform 0.4s ease;
+        }
+
+        .toast.show { transform: translateX(0); }
+        .toast.success { background: var(--success); }
+        .toast.info { background: var(--info); }
+        .toast.error { background: var(--danger); }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .poi-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .map-container { height: 400px; }
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon"><i class="fas fa-satellite-dish"></i></div>
+            <span class="logo-text">Sarvam GPS</span>
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a class="nav-link" href="dashboard.html">
+                    <i class="fas fa-th-large"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="live-tracking.html">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>Live Tracking</span>
+                    <span class="nav-badge">LIVE</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="vehicles.html">
+                    <i class="fas fa-car"></i>
+                    <span>All Vehicles</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="routes.html">
+                    <i class="fas fa-route"></i>
+                    <span>Route History</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="geofence.html">
+                    <i class="fas fa-draw-polygon"></i>
+                    <span>Geofence</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="poi.html">
+                    <i class="fas fa-map-pin"></i>
+                    <span>POI</span>
+                    <span class="nav-badge">NEW</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="alerts.html">
+                    <i class="fas fa-bell"></i>
+                    <span>Alerts</span>
+                    <span class="nav-badge">3</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="reports.html">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reports</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="drivers.html">
+                    <i class="fas fa-user-tie"></i>
+                    <span>Drivers</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="fuel.html">
+                    <i class="fas fa-gas-pump"></i>
+                    <span>Fuel Monitor</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="settings.html">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <div class="user-profile">
+                <div class="user-avatar" id="userAvatar">SA</div>
+                <div class="user-info">
+                    <div class="name" id="userName">Admin</div>
+                    <div class="role">Super Administrator</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="top-header">
+            <div class="header-left">
+                <button class="toggle-sidebar" id="toggleSidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Points of Interest (POI)</h1>
+            </div>
+            <div class="header-right">
+                <button class="header-btn" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-dot"></span>
+                </button>
+                <button class="header-btn" title="Logout" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="page-content">
+            <div class="poi-layout">
+                <!-- Left Panel -->
+                <div class="poi-panel">
+                    <div class="panel-header">
+                        <h2><i class="fas fa-map-pin"></i> POI List</h2>
+
+                        <div class="poi-categories">
+                            <button class="poi-cat-btn active" data-cat="all" onclick="filterCategory('all')">
+                                <i class="fas fa-th-large"></i> All
+                            </button>
+                            <button class="poi-cat-btn" data-cat="office" onclick="filterCategory('office')">
+                                <i class="fas fa-building"></i> Office
+                            </button>
+                            <button class="poi-cat-btn" data-cat="fuel" onclick="filterCategory('fuel')">
+                                <i class="fas fa-gas-pump"></i> Fuel
+                            </button>
+                            <button class="poi-cat-btn" data-cat="rest" onclick="filterCategory('rest')">
+                                <i class="fas fa-utensils"></i> Rest
+                            </button>
+                            <button class="poi-cat-btn" data-cat="customer" onclick="filterCategory('customer')">
+                                <i class="fas fa-handshake"></i> Customer
+                            </button>
+                            <button class="poi-cat-btn" data-cat="warehouse" onclick="filterCategory('warehouse')">
+                                <i class="fas fa-warehouse"></i> Warehouse
+                            </button>
+                        </div>
+
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" placeholder="Search POI..." id="searchPoi">
+                        </div>
+                    </div>
+
+                    <div class="panel-body" id="poiList">
+                        <!-- Dynamic content -->
+                    </div>
+                </div>
+
+                <!-- Map -->
+                <div class="map-container">
+                    <div id="map"></div>
+
+                    <div class="map-controls">
+                        <button class="map-control-btn" onclick="map.zoomIn()"><i class="fas fa-plus"></i></button>
+                        <button class="map-control-btn" onclick="map.zoomOut()"><i class="fas fa-minus"></i></button>
+                        <button class="map-control-btn" onclick="fitAllPoi()"><i class="fas fa-expand"></i></button>
+                    </div>
+
+                    <button class="add-poi-btn" onclick="openAddModal()">
+                        <i class="fas fa-plus"></i> Add POI
+                    </button>
+
+                    <!-- POI Detail Popup -->
+                    <div class="poi-popup" id="poiPopup">
+                        <div class="popup-header">
+                            <h3><i class="fas fa-map-pin"></i> <span id="popupName">POI Name</span></h3>
+                            <button class="popup-close" onclick="closePopup()"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="popup-body">
+                            <div class="popup-field">
+                                <label>Type</label>
+                                <value id="popupType">Office</value>
+                            </div>
+                            <div class="popup-field">
+                                <label>Distance</label>
+                                <value id="popupDistance">2.5 km</value>
+                            </div>
+                            <div class="popup-field">
+                                <label>Latitude</label>
+                                <value id="popupLat">23.0225</value>
+                            </div>
+                            <div class="popup-field">
+                                <label>Longitude</label>
+                                <value id="popupLng">72.5714</value>
+                            </div>
+                            <div class="popup-field full">
+                                <label>Address</label>
+                                <value id="popupAddress" style="font-size:13px;font-weight:500;">Address here</value>
+                            </div>
+                        </div>
+                        <div class="popup-actions">
+                            <button class="btn btn-primary" onclick="navigateToPoi()">
+                                <i class="fas fa-location-arrow"></i> Navigate
+                            </button>
+                            <button class="btn btn-outline" onclick="editPoi()">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn btn-danger" onclick="deletePoi()">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add POI Modal -->
+    <div class="modal-overlay" id="addModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2><i class="fas fa-map-pin"></i> Add New POI</h2>
+                <button class="modal-close" onclick="closeAddModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group full">
+                        <label>POI Name</label>
+                        <input type="text" id="poiName" placeholder="e.g. Head Office">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select id="poiType">
+                            <option value="office">Office</option>
+                            <option value="fuel">Fuel Station</option>
+                            <option value="rest">Restaurant/Hotel</option>
+                            <option value="customer">Customer Location</option>
+                            <option value="warehouse">Warehouse</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Radius (meters)</label>
+                        <input type="number" id="poiRadius" placeholder="100" value="100">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Latitude</label>
+                        <input type="text" id="poiLat" placeholder="23.0225">
+                    </div>
+                    <div class="form-group">
+                        <label>Longitude</label>
+                        <input type="text" id="poiLng" placeholder="72.5714">
+                    </div>
+                </div>
+                <div class="form-group full">
+                    <label>Address</label>
+                    <textarea id="poiAddress" placeholder="Full address..."></textarea>
+                </div>
+                <div class="form-group full">
+                    <label>Marker Color</label>
+                    <div class="color-picker">
+                        <div class="color-option selected" style="background:#9b59b6;" data-color="#9b59b6" onclick="selectColor(this)"></div>
+                        <div class="color-option" style="background:#e67e22;" data-color="#e67e22" onclick="selectColor(this)"></div>
+                        <div class="color-option" style="background:#1abc9c;" data-color="#1abc9c" onclick="selectColor(this)"></div>
+                        <div class="color-option" style="background:#3498db;" data-color="#3498db" onclick="selectColor(this)"></div>
+                        <div class="color-option" style="background:#e74c3c;" data-color="#e74c3c" onclick="selectColor(this)"></div>
+                        <div class="color-option" style="background:#f39c12;" data-color="#f39c12" onclick="selectColor(this)"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeAddModal()">Cancel</button>
+                <button class="btn btn-success" onclick="savePoi()">
+                    <i class="fas fa-check"></i> Save POI
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // ============ AUTH ============
+        const token = localStorage.getItem('sarvam_token');
+        if (!token) window.location.href = 'login.html';
+
+        const user = JSON.parse(localStorage.getItem('sarvam_user') || '{}');
+        document.getElementById('userName').textContent = user.name || 'Admin';
+        document.getElementById('userAvatar').textContent = (user.name || 'A').charAt(0).toUpperCase();
+
+        // ============ SIDEBAR ============
+        const sidebar = document.getElementById('sidebar');
+        document.getElementById('toggleSidebar').addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('sarvam_token');
+            localStorage.removeItem('sarvam_user');
+            window.location.href = 'login.html';
+        });
+
+        // ============ MAP ============
+        let map, markers = {};
+        let selectedPoiId = null;
+        let currentCategory = 'all';
+        let selectedColor = '#9b59b6';
+
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView([23.0225, 72.5714], 12);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: 'Sarvam GPS',
+                maxZoom: 19
+            }).addTo(map);
+        }
+
+        // ============ DEMO POI DATA ============
+        let pois = [
+            {
+                id: 'POI001',
+                name: 'Sarvam Head Office',
+                type: 'office',
+                lat: 23.0225,
+                lng: 72.5714,
+                address: '101, Business Park, SG Highway, Ahmedabad',
+                radius: 100,
+                color: '#9b59b6',
+                distance: '0.0'
+            },
+            {
+                id: 'POI002',
+                name: 'Indian Oil Petrol Pump',
+                type: 'fuel',
+                lat: 23.035,
+                lng: 72.55,
+                address: 'Near Ashram Road, Ahmedabad',
+                radius: 50,
+                color: '#e67e22',
+                distance: '3.2'
+            },
+            {
+                id: 'POI003',
+                name: 'Highway Dhaba',
+                type: 'rest',
+                lat: 23.015,
+                lng: 72.59,
+                address: 'NH-8, Near Maninagar, Ahmedabad',
+                radius: 80,
+                color: '#1abc9c',
+                distance: '4.1'
+            },
+            {
+                id: 'POI004',
+                name: 'Reliance Customer Center',
+                type: 'customer',
+                lat: 23.04,
+                lng: 72.56,
+                address: 'Satellite, Ahmedabad',
+                radius: 120,
+                color: '#3498db',
+                distance: '2.8'
+            },
+            {
+                id: 'POI005',
+                name: 'Main Warehouse',
+                type: 'warehouse',
+                lat: 23.01,
+                lng: 72.54,
+                address: 'Odhav Industrial Estate, Ahmedabad',
+                radius: 200,
+                color: '#e74c3c',
+                distance: '5.5'
+            },
+            {
+                id: 'POI006',
+                name: 'Branch Office Bopal',
+                type: 'office',
+                lat: 23.0,
+                lng: 72.53,
+                address: 'Bopal Cross Road, Ahmedabad',
+                radius: 100,
+                color: '#9b59b6',
+                distance: '6.2'
+            },
+            {
+                id: 'POI007',
+                name: 'Bharat Petroleum',
+                type: 'fuel',
+                lat: 23.025,
+                lng: 72.58,
+                address: 'CG Road, Ahmedabad',
+                radius: 50,
+                color: '#e67e22',
+                distance: '1.5'
+            },
+            {
+                id: 'POI008',
+                name: 'Grand Hotel',
+                type: 'rest',
+                lat: 23.03,
+                lng: 72.595,
+                address: 'Vastrapur, Ahmedabad',
+                radius: 100,
+                color: '#1abc9c',
+                distance: '3.8'
+            }
+        ];
+
+        const poiIcons = {
+            office: 'building',
+            fuel: 'gas-pump',
+            rest: 'utensils',
+            customer: 'handshake',
+            warehouse: 'warehouse'
+        };
+
+        const poiColors = {
+            office: '#9b59b6',
+            fuel: '#e67e22',
+            rest: '#1abc9c',
+            customer: '#3498db',
+            warehouse: '#e74c3c'
+        };
+
+        // ============ RENDER POI LIST ============
+        function renderPoiList() {
+            const list = document.getElementById('poiList');
+            const search = document.getElementById('searchPoi').value.toLowerCase();
+
+            let filtered = pois;
+            if (currentCategory !== 'all') {
+                filtered = filtered.filter(p => p.type === currentCategory);
+            }
+            if (search) {
+                filtered = filtered.filter(p => p.name.toLowerCase().includes(search) || p.address.toLowerCase().includes(search));
+            }
+
+            list.innerHTML = filtered.map(p => `
+                <div class="poi-item ${selectedPoiId === p.id ? 'active' : ''}" onclick="selectPoi('${p.id}')">
+                    <div class="poi-icon ${p.type}" style="background:${p.color || poiColors[p.type]};">
+                        <i class="fas fa-${poiIcons[p.type]}"></i>
+                    </div>
+                    <div class="poi-info">
+                        <div class="poi-name">${p.name}</div>
+                        <div class="poi-meta">
+                            <span><i class="fas fa-map-marker-alt"></i> ${p.address.substring(0, 30)}...</span>
+                        </div>
+                    </div>
+                    <div class="poi-distance">${p.distance} km</div>
+                </div>
+            `).join('');
+        }
+
+        // ============ RENDER MARKERS ============
+        function renderMarkers() {
+            // Clear existing
+            Object.values(markers).forEach(m => map.removeLayer(m));
+            markers = {};
+
+            let filtered = pois;
+            if (currentCategory !== 'all') {
+                filtered = filtered.filter(p => p.type === currentCategory);
+            }
+
+            filtered.forEach(p => {
+                const color = p.color || poiColors[p.type];
+                const iconHtml = `
+                    <div style="background:${color};width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;border:3px solid white;box-shadow:0 3px 12px ${color}66;position:relative;">
+                        <i class="fas fa-${poiIcons[p.type]}"></i>
+                        <div style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid ${color};"></div>
+                    </div>
+                `;
+
+                const icon = L.divIcon({
+                    className: 'poi-marker',
+                    html: iconHtml,
+                    iconSize: [36, 44],
+                    iconAnchor: [18, 44]
+                });
+
+                const marker = L.marker([p.lat, p.lng], { icon }).addTo(map);
+                marker.bindPopup(`
+                    <div style="min-width:200px;">
+                        <h4 style="margin:0 0 8px 0;color:${color};"><i class="fas fa-${poiIcons[p.type]}"></i> ${p.name}</h4>
+                        <p style="margin:4px 0;font-size:12px;color:#6c757d;">${p.address}</p>
+                        <p style="margin:4px 0;font-size:12px;"><strong>Radius:</strong> ${p.radius}m</p>
+                    </div>
+                `);
+
+                marker.on('click', () => selectPoi(p.id));
+                markers[p.id] = marker;
+            });
+        }
+
+        // ============ SELECT POI ============
+        function selectPoi(id) {
+            selectedPoiId = id;
+            const p = pois.find(po => po.id === id);
+            if (!p) return;
+
+            renderPoiList();
+
+            // Show popup
+            document.getElementById('poiPopup').classList.add('show');
+            document.getElementById('popupName').textContent = p.name;
+            document.getElementById('popupType').textContent = p.type.charAt(0).toUpperCase() + p.type.slice(1);
+            document.getElementById('popupDistance').textContent = p.distance + ' km';
+            document.getElementById('popupLat').textContent = p.lat.toFixed(4);
+            document.getElementById('popupLng').textContent = p.lng.toFixed(4);
+            document.getElementById('popupAddress').textContent = p.address;
+
+            // Center map
+            map.setView([p.lat, p.lng], 15);
+            if (markers[id]) markers[id].openPopup();
+        }
+
+        function closePopup() {
+            document.getElementById('poiPopup').classList.remove('show');
+            selectedPoiId = null;
+            renderPoiList();
+        }
+
+        // ============ CATEGORY FILTER ============
+        function filterCategory(cat) {
+            currentCategory = cat;
+            document.querySelectorAll('.poi-cat-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.cat === cat);
+            });
+            renderPoiList();
+            renderMarkers();
+        }
+
+        // ============ SEARCH ============
+        document.getElementById('searchPoi').addEventListener('input', () => {
+            renderPoiList();
+        });
+
+        // ============ ADD POI ============
+        function openAddModal() {
+            document.getElementById('addModal').classList.add('show');
+            // Auto-fill current map center
+            const center = map.getCenter();
+            document.getElementById('poiLat').value = center.lat.toFixed(4);
+            document.getElementById('poiLng').value = center.lng.toFixed(4);
+        }
+
+        function closeAddModal() {
+            document.getElementById('addModal').classList.remove('show');
+            document.querySelectorAll('#addModal input, #addModal select, #addModal textarea').forEach(el => {
+                if (el.id !== 'poiRadius') el.value = '';
+            });
+        }
+
+        function selectColor(el) {
+            document.querySelectorAll('.color-option').forEach(c => c.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedColor = el.dataset.color;
+        }
+
+        function savePoi() {
+            const name = document.getElementById('poiName').value;
+            const type = document.getElementById('poiType').value;
+            const lat = parseFloat(document.getElementById('poiLat').value);
+            const lng = parseFloat(document.getElementById('poiLng').value);
+            const radius = parseInt(document.getElementById('poiRadius').value) || 100;
+            const address = document.getElementById('poiAddress').value;
+
+            if (!name || isNaN(lat) || isNaN(lng)) {
+                showToast('Please fill all required fields', 'error');
+                return;
+            }
+
+            const newPoi = {
+                id: 'POI' + String(pois.length + 1).padStart(3, '0'),
+                name,
+                type,
+                lat,
+                lng,
+                address: address || 'Address not specified',
+                radius,
+                color: selectedColor,
+                distance: (Math.random() * 10).toFixed(1)
+            };
+
+            pois.push(newPoi);
+            closeAddModal();
+            renderPoiList();
+            renderMarkers();
+            showToast('POI added successfully!', 'success');
+        }
+
+        // ============ ACTIONS ============
+        function navigateToPoi() {
+            if (!selectedPoiId) return;
+            const p = pois.find(po => po.id === selectedPoiId);
+            if (p) {
+                window.open(`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`, '_blank');
+            }
+        }
+
+        function editPoi() {
+            if (!selectedPoiId) return;
+            showToast('Edit feature coming soon!', 'info');
+        }
+
+        function deletePoi() {
+            if (!selectedPoiId) return;
+            if (confirm('Delete this POI?')) {
+                pois = pois.filter(p => p.id !== selectedPoiId);
+                closePopup();
+                renderPoiList();
+                renderMarkers();
+                showToast('POI deleted!', 'success');
+            }
+        }
+
+        function fitAllPoi() {
+            const group = L.featureGroup(Object.values(markers));
+            if (group.getLayers().length > 0) {
+                map.fitBounds(group.getBounds().pad(0.1));
+            }
+        }
+
+        // ============ TOAST ============
+        function showToast(message, type) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i> ${message}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 400);
+            }, 3000);
+        }
+
+        // ============ INIT ============
+        initMap();
+        renderPoiList();
+        renderMarkers();
+    </script>
+</body>
+</html>

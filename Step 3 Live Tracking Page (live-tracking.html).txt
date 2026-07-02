@@ -1,0 +1,1470 @@
+<!-- live-tracking.html -->
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Tracking | Sarvam Automation GPS</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #e94560;
+            --primary-dark: #c73e54;
+            --sidebar-bg: #1a1a2e;
+            --sidebar-width: 260px;
+            --sidebar-collapsed: 70px;
+            --header-height: 65px;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --info: #3498db;
+            --offline: #95a5a6;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #f5f7fa;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--sidebar-bg);
+            z-index: 100;
+            transition: width 0.3s ease;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        .sidebar.collapsed { width: var(--sidebar-collapsed); }
+        
+        .sidebar-header {
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sidebar-header .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), #ff6b6b);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .sidebar-header .logo-icon i { color: white; font-size: 18px; }
+        
+        .sidebar-header .logo-text {
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            margin-left: 12px;
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s;
+        }
+        
+        .sidebar.collapsed .logo-text { opacity: 0; width: 0; }
+        
+        .nav-menu {
+            padding: 15px 0;
+            list-style: none;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 14px 20px;
+            color: rgba(255,255,255,0.6);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+            cursor: pointer;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            color: white;
+            background: rgba(233,69,96,0.1);
+            border-left-color: var(--primary);
+        }
+        
+        .nav-link i {
+            width: 24px;
+            text-align: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        
+        .nav-link span {
+            margin-left: 12px;
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s;
+            font-size: 14px;
+        }
+        
+        .sidebar.collapsed .nav-link span { opacity: 0; width: 0; }
+        
+        .nav-badge {
+            margin-left: auto;
+            background: var(--primary);
+            color: white;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            white-space: nowrap;
+        }
+        
+        .sidebar.collapsed .nav-badge { display: none; }
+        
+        .sidebar-footer {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            padding: 15px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .user-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), #ff6b6b);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        
+        .user-info {
+            white-space: nowrap;
+            overflow: hidden;
+            transition: opacity 0.3s;
+        }
+        
+        .sidebar.collapsed .user-info { opacity: 0; }
+        
+        .user-info .name {
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .user-info .role {
+            color: rgba(255,255,255,0.5);
+            font-size: 11px;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: margin-left 0.3s ease;
+        }
+        
+        .sidebar.collapsed ~ .main-content {
+            margin-left: var(--sidebar-collapsed);
+        }
+        
+        /* Header */
+        .top-header {
+            height: var(--header-height);
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            z-index: 99;
+            flex-shrink: 0;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .toggle-sidebar {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: none;
+            background: #f5f7fa;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1a1a2e;
+            transition: all 0.3s;
+        }
+        
+        .toggle-sidebar:hover { background: var(--primary); color: white; }
+        
+        .page-title { font-size: 20px; font-weight: 700; }
+        
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(46,204,113,0.1);
+            color: var(--success);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.3); }
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .header-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            border: none;
+            background: #f5f7fa;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .header-btn:hover { background: var(--primary); color: white; }
+        
+        .header-btn .notification-dot {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 8px;
+            height: 8px;
+            background: var(--danger);
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        
+        /* Tracking Layout */
+        .tracking-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        /* Vehicle Sidebar */
+        .vehicle-sidebar {
+            width: 340px;
+            background: white;
+            border-right: 1px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex-shrink: 0;
+            transition: width 0.3s ease;
+        }
+        
+        .vehicle-sidebar.collapsed { width: 0; overflow: hidden; }
+        
+        .vehicle-search {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .vehicle-search input {
+            width: 100%;
+            padding: 12px 15px 12px 42px;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s;
+            background: #f8f9fa;
+            border: 1px solid transparent;
+        }
+        
+        .vehicle-search input:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(233,69,96,0.1);
+        }
+        
+        .search-wrapper { position: relative; }
+        
+        .search-wrapper i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            font-size: 14px;
+        }
+        
+        .filter-tabs {
+            display: flex;
+            padding: 0 15px;
+            border-bottom: 1px solid #e9ecef;
+            gap: 5px;
+        }
+        
+        .filter-tab {
+            padding: 12px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6c757d;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        
+        .filter-tab:hover { color: var(--primary); }
+        .filter-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+        
+        .filter-tab .count {
+            background: #e9ecef;
+            color: #6c757d;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            margin-left: 6px;
+        }
+        
+        .filter-tab.active .count {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .vehicle-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        
+        .vehicle-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 8px;
+            border: 1px solid transparent;
+        }
+        
+        .vehicle-item:hover {
+            background: #f8f9fa;
+            border-color: #e9ecef;
+        }
+        
+        .vehicle-item.active {
+            background: rgba(233,69,96,0.06);
+            border-color: rgba(233,69,96,0.2);
+        }
+        
+        .vehicle-item-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+            transition: transform 0.3s;
+        }
+        
+        .vehicle-item:hover .vehicle-item-icon { transform: scale(1.1); }
+        
+        .vehicle-item-icon.moving { background: rgba(46,204,113,0.12); color: var(--success); }
+        .vehicle-item-icon.idle { background: rgba(243,156,18,0.12); color: var(--warning); }
+        .vehicle-item-icon.stopped { background: rgba(231,76,60,0.12); color: var(--danger); }
+        .vehicle-item-icon.offline { background: rgba(149,165,166,0.12); color: var(--offline); }
+        
+        .vehicle-item-info { flex: 1; min-width: 0; }
+        
+        .vehicle-item-name {
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #1a1a2e;
+        }
+        
+        .vehicle-item-meta {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .vehicle-item-meta i { font-size: 10px; }
+        
+        .vehicle-item-speed {
+            text-align: right;
+            font-weight: 700;
+            font-size: 15px;
+        }
+        
+        .vehicle-item-speed.moving { color: var(--success); }
+        .vehicle-item-speed.idle { color: var(--warning); }
+        .vehicle-item-speed.stopped { color: var(--danger); }
+        .vehicle-item-speed.offline { color: var(--offline); }
+        
+        .speed-unit {
+            font-size: 11px;
+            color: #6c757d;
+            font-weight: 400;
+        }
+        
+        /* Map Area */
+        .map-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #map { width: 100%; height: 100%; }
+        
+        /* Map Controls */
+        .map-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 500;
+        }
+        
+        .map-control-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1a1a2e;
+            font-size: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+        
+        .map-control-btn:hover {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.1);
+        }
+        
+        .map-control-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        /* Vehicle Info Panel */
+        .vehicle-info-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 360px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            padding: 24px;
+            z-index: 500;
+            transform: translateY(450px);
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .vehicle-info-panel.show { transform: translateY(0); }
+        
+        .info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+        
+        .info-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .info-title-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .info-title-text h3 {
+            font-size: 17px;
+            color: #1a1a2e;
+        }
+        
+        .info-title-text p {
+            font-size: 13px;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+        
+        .close-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            border: none;
+            background: #f5f7fa;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            transition: all 0.3s;
+        }
+        
+        .close-btn:hover { background: var(--danger); color: white; }
+        
+        .status-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .status-badge-large {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .status-badge-large.moving {
+            background: rgba(46,204,113,0.1);
+            color: var(--success);
+        }
+        
+        .status-badge-large.idle {
+            background: rgba(243,156,18,0.1);
+            color: var(--warning);
+        }
+        
+        .status-badge-large.stopped {
+            background: rgba(231,76,60,0.1);
+            color: var(--danger);
+        }
+        
+        .status-badge-large.offline {
+            background: rgba(149,165,166,0.1);
+            color: var(--offline);
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .info-item {
+            background: #f8f9fa;
+            padding: 14px;
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+        
+        .info-item:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+        }
+        
+        .info-item label {
+            font-size: 11px;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+        
+        .info-item value {
+            display: block;
+            font-size: 15px;
+            font-weight: 700;
+            margin-top: 6px;
+            color: #1a1a2e;
+        }
+        
+        .info-item value.small {
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .speed-graph {
+            height: 60px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+            padding: 10px;
+        }
+        
+        .speed-graph canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .info-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .info-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        
+        .info-btn.primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .info-btn.primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(233,69,96,0.3);
+        }
+        
+        .info-btn.secondary {
+            background: #f5f7fa;
+            color: #1a1a2e;
+            border: 1px solid #e9ecef;
+        }
+        
+        .info-btn.secondary:hover {
+            background: #e9ecef;
+            border-color: #dee2e6;
+        }
+        
+        /* Toggle Sidebar Button on Map */
+        .toggle-vehicle-sidebar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 500;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1a1a2e;
+            font-size: 18px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+        
+        .toggle-vehicle-sidebar:hover {
+            background: var(--primary);
+            color: white;
+        }
+        
+        /* Route Polyline Animation */
+        .animated-route {
+            stroke-dasharray: 10;
+            animation: dash 1s linear infinite;
+        }
+        
+        @keyframes dash {
+            to { stroke-dashoffset: -20; }
+        }
+        
+        /* Custom Popup */
+        .leaflet-popup-content-wrapper {
+            border-radius: 16px !important;
+            padding: 0 !important;
+        }
+        
+        .leaflet-popup-content {
+            margin: 0 !important;
+            width: 280px !important;
+        }
+        
+        .popup-header {
+            background: linear-gradient(135deg, var(--primary), #ff6b6b);
+            color: white;
+            padding: 16px;
+            border-radius: 16px 16px 0 0;
+        }
+        
+        .popup-header h4 {
+            margin: 0;
+            font-size: 15px;
+        }
+        
+        .popup-body {
+            padding: 16px;
+        }
+        
+        .popup-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+        }
+        
+        .popup-row:last-child { border-bottom: none; }
+        
+        .popup-label { color: #6c757d; }
+        .popup-value { font-weight: 600; color: #1a1a2e; }
+        
+        /* No Results */
+        .no-results {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+        
+        .no-results i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+        
+        .no-results p { font-size: 14px; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .vehicle-sidebar {
+                position: absolute;
+                left: 0;
+                top: var(--header-height);
+                height: calc(100vh - var(--header-height));
+                z-index: 400;
+                box-shadow: 5px 0 30px rgba(0,0,0,0.1);
+            }
+            .vehicle-sidebar.collapsed { transform: translateX(-100%); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon"><i class="fas fa-satellite-dish"></i></div>
+            <span class="logo-text">Sarvam GPS</span>
+        </div>
+        
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a class="nav-link" href="dashboard.html">
+                    <i class="fas fa-th-large"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="live-tracking.html">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>Live Tracking</span>
+                    <span class="nav-badge">LIVE</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="vehicles.html">
+                    <i class="fas fa-car"></i>
+                    <span>All Vehicles</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="routes.html">
+                    <i class="fas fa-route"></i>
+                    <span>Route History</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="geofence.html">
+                    <i class="fas fa-draw-polygon"></i>
+                    <span>Geofence</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="alerts.html">
+                    <i class="fas fa-bell"></i>
+                    <span>Alerts</span>
+                    <span class="nav-badge">3</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="reports.html">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reports</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="drivers.html">
+                    <i class="fas fa-user-tie"></i>
+                    <span>Drivers</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="fuel.html">
+                    <i class="fas fa-gas-pump"></i>
+                    <span>Fuel Monitor</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="settings.html">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </li>
+        </ul>
+        
+        <div class="sidebar-footer">
+            <div class="user-profile">
+                <div class="user-avatar" id="userAvatar">SA</div>
+                <div class="user-info">
+                    <div class="name" id="userName">Admin</div>
+                    <div class="role">Super Administrator</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Top Header -->
+        <header class="top-header">
+            <div class="header-left">
+                <button class="toggle-sidebar" id="toggleSidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Live Tracking</h1>
+                <div class="live-indicator">
+                    <span class="live-dot"></span>
+                    <span>LIVE</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="header-btn" title="Refresh" id="refreshBtn">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button class="header-btn" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-dot"></span>
+                </button>
+                <button class="header-btn" title="Logout" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
+        
+        <!-- Tracking Container -->
+        <div class="tracking-container">
+            <!-- Vehicle Sidebar -->
+            <div class="vehicle-sidebar" id="vehicleSidebar">
+                <div class="vehicle-search">
+                    <div class="search-wrapper">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search vehicle..." id="searchVehicle">
+                    </div>
+                </div>
+                
+                <div class="filter-tabs">
+                    <div class="filter-tab active" data-filter="all">All<span class="count" id="countAll">0</span></div>
+                    <div class="filter-tab" data-filter="moving">Moving<span class="count" id="countMoving">0</span></div>
+                    <div class="filter-tab" data-filter="idle">Idle<span class="count" id="countIdle">0</span></div>
+                    <div class="filter-tab" data-filter="stopped">Stopped<span class="count" id="countStopped">0</span></div>
+                </div>
+                
+                <div class="vehicle-list" id="vehicleList">
+                    <!-- Dynamic content -->
+                </div>
+            </div>
+            
+            <!-- Map Area -->
+            <div class="map-area">
+                <button class="toggle-vehicle-sidebar" id="toggleVehicleSidebar" title="Toggle Vehicle List">
+                    <i class="fas fa-list"></i>
+                </button>
+                
+                <div id="map"></div>
+                
+                <!-- Map Controls -->
+                <div class="map-controls">
+                    <button class="map-control-btn" id="btnZoomIn" title="Zoom In"><i class="fas fa-plus"></i></button>
+                    <button class="map-control-btn" id="btnZoomOut" title="Zoom Out"><i class="fas fa-minus"></i></button>
+                    <button class="map-control-btn" id="btnFitAll" title="Fit All Vehicles"><i class="fas fa-expand"></i></button>
+                    <button class="map-control-btn" id="btnTraffic" title="Traffic Layer"><i class="fas fa-traffic-light"></i></button>
+                    <button class="map-control-btn" id="btnSatellite" title="Satellite View"><i class="fas fa-satellite"></i></button>
+                    <button class="map-control-btn" id="btnFollow" title="Follow Selected"><i class="fas fa-crosshairs"></i></button>
+                </div>
+                
+                <!-- Vehicle Info Panel -->
+                <div class="vehicle-info-panel" id="vehicleInfoPanel">
+                    <div class="info-header">
+                        <div class="info-title">
+                            <div class="info-title-icon" id="infoIcon">
+                                <i class="fas fa-car"></i>
+                            </div>
+                            <div class="info-title-text">
+                                <h3 id="infoName">Vehicle Name</h3>
+                                <p id="infoNumber">GJ-01-AB-1234</p>
+                            </div>
+                        </div>
+                        <button class="close-btn" id="closeInfoPanel"><i class="fas fa-times"></i></button>
+                    </div>
+                    
+                    <div class="status-row">
+                        <span class="status-badge-large moving" id="infoStatusBadge">
+                            <span class="status-dot"></span>
+                            <span id="infoStatusText">Moving</span>
+                        </span>
+                        <span style="font-size: 20px; font-weight: 700; color: var(--primary);" id="infoSpeed">45 km/h</span>
+                    </div>
+                    
+                    <div class="speed-graph">
+                        <canvas id="speedChart"></canvas>
+                    </div>
+                    
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Driver</label>
+                            <value class="small" id="infoDriver">Ramesh Patel</value>
+                        </div>
+                        <div class="info-item">
+                            <label>Ignition</label>
+                            <value id="infoIgnition">ON</value>
+                        </div>
+                        <div class="info-item">
+                            <label>Latitude</label>
+                            <value class="small" id="infoLat">23.0225</value>
+                        </div>
+                        <div class="info-item">
+                            <label>Longitude</label>
+                            <value class="small" id="infoLng">72.5714</value>
+                        </div>
+                        <div class="info-item">
+                            <label>Distance Today</label>
+                            <value id="infoDistance">124.5 km</value>
+                        </div>
+                        <div class="info-item">
+                            <label>Last Update</label>
+                            <value class="small" id="infoLastUpdate">2 min ago</value>
+                        </div>
+                    </div>
+                    
+                    <div class="info-actions">
+                        <button class="info-btn primary" onclick="viewRouteHistory()">
+                            <i class="fas fa-route"></i> Route History
+                        </button>
+                        <button class="info-btn secondary" onclick="shareLocation()">
+                            <i class="fas fa-share-alt"></i> Share
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // ============ AUTH CHECK ============
+        const token = localStorage.getItem('sarvam_token');
+        if (!token) window.location.href = 'login.html';
+        
+        const user = JSON.parse(localStorage.getItem('sarvam_user') || '{}');
+        document.getElementById('userName').textContent = user.name || 'Admin';
+        document.getElementById('userAvatar').textContent = (user.name || 'A').charAt(0).toUpperCase();
+        
+        // ============ SIDEBAR TOGGLE ============
+        const sidebar = document.getElementById('sidebar');
+        document.getElementById('toggleSidebar').addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+        });
+        
+        // ============ LOGOUT ============
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('sarvam_token');
+            localStorage.removeItem('sarvam_user');
+            window.location.href = 'login.html';
+        });
+        
+        // ============ VEHICLE SIDEBAR TOGGLE ============
+        const vehicleSidebar = document.getElementById('vehicleSidebar');
+        document.getElementById('toggleVehicleSidebar').addEventListener('click', () => {
+            vehicleSidebar.classList.toggle('collapsed');
+        });
+        
+        // ============ MAP SETUP ============
+        let map, markers = {}, polylines = {}, selectedVehicle = null, followMode = false;
+        let vehicleData = [];
+        
+        const vehicleIcons = {
+            car: L.divIcon({
+                className: 'custom-marker',
+                html: '<div style="background:linear-gradient(135deg,#3498db,#2980b9);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;box-shadow:0 3px 12px rgba(52,152,219,0.4);border:3px solid white;position:relative;"><i class="fas fa-car"></i><div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid #3498db;"></div></div>',
+                iconSize: [36, 44],
+                iconAnchor: [18, 44]
+            }),
+            truck: L.divIcon({
+                className: 'custom-marker',
+                html: '<div style="background:linear-gradient(135deg,#f39c12,#e67e22);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;box-shadow:0 3px 12px rgba(243,156,18,0.4);border:3px solid white;position:relative;"><i class="fas fa-truck"></i><div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid #f39c12;"></div></div>',
+                iconSize: [36, 44],
+                iconAnchor: [18, 44]
+            }),
+            bike: L.divIcon({
+                className: 'custom-marker',
+                html: '<div style="background:linear-gradient(135deg,#2ecc71,#27ae60);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;box-shadow:0 3px 12px rgba(46,204,113,0.4);border:3px solid white;position:relative;"><i class="fas fa-motorcycle"></i><div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid #2ecc71;"></div></div>',
+                iconSize: [36, 44],
+                iconAnchor: [18, 44]
+            }),
+            bus: L.divIcon({
+                className: 'custom-marker',
+                html: '<div style="background:linear-gradient(135deg,#9b59b6,#8e44ad);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;box-shadow:0 3px 12px rgba(155,89,182,0.4);border:3px solid white;position:relative;"><i class="fas fa-bus"></i><div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid #9b59b6;"></div></div>',
+                iconSize: [36, 44],
+                iconAnchor: [18, 44]
+            })
+        };
+        
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView([23.0225, 72.5714], 12);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: 'Sarvam GPS',
+                maxZoom: 19
+            }).addTo(map);
+        }
+        
+        // ============ GENERATE VEHICLES (Optimized for 10,000) ============
+        const vehicleTypes = ['car', 'truck', 'bike', 'bus'];
+        const vehicleNames = ['Toyota Innova', 'Tata Ace', 'Mahindra Bolero', 'Maruti Swift', 'Honda Activa', 'Force Traveller', 'Eicher Truck', 'Bajaj Pulsar', 'Hyundai Creta', 'Ashok Leyland'];
+        const drivers = ['Ramesh Patel', 'Suresh Kumar', 'Mahesh Shah', 'Dinesh Yadav', 'Kamlesh Joshi', 'Naresh Verma', 'Paresh Mehta', 'Hitesh Rao', 'Jitesh Thakkar', 'Mukesh Sharma'];
+        const areas = ['SG Highway', 'Ashram Road', 'CG Road', 'Satellite', 'Bopal', 'Maninagar', 'Vastrapur', 'Navrangpura', 'Paldi', 'Ellisbridge', 'Gota', 'Chandkheda', 'Bapunagar', 'Odhav', 'Naroda'];
+        
+        function generateVehicles(count = 100) {
+            const vehicles = [];
+            const baseLat = 23.0225;
+            const baseLng = 72.5714;
+            
+            for (let i = 0; i < count; i++) {
+                const type = vehicleTypes[i % 4];
+                const status = ['moving', 'idle', 'stopped', 'offline'][Math.floor(Math.random() * 4)];
+                const speed = status === 'moving' ? Math.floor(Math.random() * 80) + 5 : 
+                             status === 'idle' ? Math.floor(Math.random() * 5) : 0;
+                
+                vehicles.push({
+                    id: `VEH${String(i + 1).padStart(5, '0')}`,
+                    name: vehicleNames[i % 10],
+                    number: `GJ-${String((i % 99) + 1).padStart(2, '0')}-${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(65 + ((i + 1) % 26))}-${String((i % 9999) + 1).padStart(4, '0')}`,
+                    type: type,
+                    driver: drivers[i % 10],
+                    status: status,
+                    speed: speed,
+                    lat: baseLat + (Math.random() - 0.5) * 0.8,
+                    lng: baseLng + (Math.random() - 0.5) * 0.8,
+                    location: `Near ${areas[i % 15]}`,
+                    lastUpdate: new Date(Date.now() - Math.floor(Math.random() * 3600000)),
+                    ignition: status !== 'offline',
+                    distance: (Math.random() * 200).toFixed(1),
+                    routeHistory: []
+                });
+            }
+            return vehicles;
+        }
+        
+        // ============ RENDER VEHICLE LIST ============
+        function renderVehicleList(vehicles, filter = 'all') {
+            const list = document.getElementById('vehicleList');
+            const filtered = filter === 'all' ? vehicles : vehicles.filter(v => v.status === filter);
+            
+            if (filtered.length === 0) {
+                list.innerHTML = `
+                    <div class="no-results">
+                        <i class="fas fa-search"></i>
+                        <p>No vehicles found</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = filtered.map(v => `
+                <div class="vehicle-item ${selectedVehicle === v.id ? 'active' : ''}" data-id="${v.id}" onclick="selectVehicle('${v.id}')">
+                    <div class="vehicle-item-icon ${v.status}">
+                        <i class="fas fa-${v.type === 'car' ? 'car' : v.type === 'truck' ? 'truck' : v.type === 'bike' ? 'motorcycle' : 'bus'}"></i>
+                    </div>
+                    <div class="vehicle-item-info">
+                        <div class="vehicle-item-name">${v.name}</div>
+                        <div class="vehicle-item-meta">
+                            <i class="fas fa-user"></i> ${v.driver}
+                            <i class="fas fa-map-marker-alt"></i> ${v.location}
+                        </div>
+                    </div>
+                    <div class="vehicle-item-speed ${v.status}">
+                        ${v.speed}<span class="speed-unit">km/h</span>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Update counts
+            document.getElementById('countAll').textContent = vehicles.length;
+            document.getElementById('countMoving').textContent = vehicles.filter(v => v.status === 'moving').length;
+            document.getElementById('countIdle').textContent = vehicles.filter(v => v.status === 'idle').length;
+            document.getElementById('countStopped').textContent = vehicles.filter(v => v.status === 'stopped').length;
+        }
+        
+        // ============ RENDER MAP MARKERS ============
+        function renderMarkers(vehicles) {
+            // Only render visible markers (viewport optimization for 10,000 vehicles)
+            const bounds = map.getBounds();
+            
+            vehicles.forEach(v => {
+                const key = v.id;
+                
+                // Skip if out of viewport (performance optimization)
+                if (!bounds.contains([v.lat, v.lng]) && markers[key]) return;
+                
+                if (markers[key]) {
+                    markers[key].setLatLng([v.lat, v.lng]);
+                } else {
+                    markers[key] = L.marker([v.lat, v.lng], {
+                        icon: vehicleIcons[v.type] || vehicleIcons.car
+                    }).addTo(map);
+                    
+                    markers[key].bindPopup(`
+                        <div class="popup-header">
+                            <h4><i class="fas fa-${v.type === 'car' ? 'car' : v.type === 'truck' ? 'truck' : v.type === 'bike' ? 'motorcycle' : 'bus'}"></i> ${v.name}</h4>
+                        </div>
+                        <div class="popup-body">
+                            <div class="popup-row"><span class="popup-label">Number</span><span class="popup-value">${v.number}</span></div>
+                            <div class="popup-row"><span class="popup-label">Driver</span><span class="popup-value">${v.driver}</span></div>
+                            <div class="popup-row"><span class="popup-label">Status</span><span class="popup-value" style="color:${v.status === 'moving' ? '#2ecc71' : v.status === 'idle' ? '#f39c12' : v.status === 'stopped' ? '#e74c3c' : '#95a5a6'}">${v.status.toUpperCase()}</span></div>
+                            <div class="popup-row"><span class="popup-label">Speed</span><span class="popup-value">${v.speed} km/h</span></div>
+                            <div class="popup-row"><span class="popup-label">Location</span><span class="popup-value">${v.location}</span></div>
+                        </div>
+                    `);
+                    
+                    markers[key].on('click', () => selectVehicle(v.id));
+                }
+            });
+        }
+        
+        // ============ SELECT VEHICLE ============
+        function selectVehicle(id) {
+            selectedVehicle = id;
+            const v = vehicleData.find(ve => ve.id === id);
+            if (!v) return;
+            
+            // Update list active state
+            document.querySelectorAll('.vehicle-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.id === id);
+            });
+            
+            // Show info panel
+            const panel = document.getElementById('vehicleInfoPanel');
+            panel.classList.add('show');
+            
+            // Update panel content
+            const iconMap = { car: 'car', truck: 'truck', bike: 'motorcycle', bus: 'bus' };
+            document.getElementById('infoIcon').innerHTML = `<i class="fas fa-${iconMap[v.type]}"></i>`;
+            document.getElementById('infoIcon').style.background = v.status === 'moving' ? 'rgba(46,204,113,0.12)' : 
+                                                                  v.status === 'idle' ? 'rgba(243,156,18,0.12)' : 
+                                                                  v.status === 'stopped' ? 'rgba(231,76,60,0.12)' : 'rgba(149,165,166,0.12)';
+            document.getElementById('infoIcon').style.color = v.status === 'moving' ? '#2ecc71' : 
+                                                            v.status === 'idle' ? '#f39c12' : 
+                                                            v.status === 'stopped' ? '#e74c3c' : '#95a5a6';
+            
+            document.getElementById('infoName').textContent = v.name;
+            document.getElementById('infoNumber').textContent = v.number;
+            
+            const badge = document.getElementById('infoStatusBadge');
+            badge.className = `status-badge-large ${v.status}`;
+            document.getElementById('infoStatusText').textContent = v.status.charAt(0).toUpperCase() + v.status.slice(1);
+            
+            document.getElementById('infoSpeed').textContent = `${v.speed} km/h`;
+            document.getElementById('infoDriver').textContent = v.driver;
+            document.getElementById('infoIgnition').textContent = v.ignition ? 'ON' : 'OFF';
+            document.getElementById('infoLat').textContent = v.lat.toFixed(4);
+            document.getElementById('infoLng').textContent = v.lng.toFixed(4);
+            document.getElementById('infoDistance').textContent = `${v.distance} km`;
+            
+            const diff = Math.floor((Date.now() - v.lastUpdate) / 60000);
+            document.getElementById('infoLastUpdate').textContent = diff < 1 ? 'Just now' : `${diff} min ago`;
+            
+            // Draw speed chart
+            drawSpeedChart(v.speed);
+            
+            // Center map on vehicle
+            map.setView([v.lat, v.lng], 16);
+            
+            // Open popup
+            if (markers[id]) markers[id].openPopup();
+        }
+        
+        // ============ SPEED CHART ============
+        function drawSpeedChart(currentSpeed) {
+            const canvas = document.getElementById('speedChart');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            const w = canvas.width;
+            const h = canvas.height;
+            
+            ctx.clearRect(0, 0, w, h);
+            
+            // Generate random history
+            const points = [];
+            for (let i = 0; i < 20; i++) {
+                points.push(Math.max(0, currentSpeed + (Math.random() - 0.5) * 30));
+            }
+            
+            // Draw gradient fill
+            const gradient = ctx.createLinearGradient(0, 0, 0, h);
+            gradient.addColorStop(0, 'rgba(233,69,96,0.3)');
+            gradient.addColorStop(1, 'rgba(233,69,96,0.0)');
+            
+            ctx.beginPath();
+            ctx.moveTo(0, h);
+            points.forEach((p, i) => {
+                ctx.lineTo((i / (points.length - 1)) * w, h - (p / 100) * h);
+            });
+            ctx.lineTo(w, h);
+            ctx.closePath();
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            // Draw line
+            ctx.beginPath();
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 2;
+            points.forEach((p, i) => {
+                const x = (i / (points.length - 1)) * w;
+                const y = h - (p / 100) * h;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+        
+        // ============ CLOSE INFO PANEL ============
+        document.getElementById('closeInfoPanel').addEventListener('click', () => {
+            document.getElementById('vehicleInfoPanel').classList.remove('show');
+            selectedVehicle = null;
+            document.querySelectorAll('.vehicle-item').forEach(el => el.classList.remove('active'));
+        });
+        
+        // ============ FILTER TABS ============
+        let currentFilter = 'all';
+        document.querySelectorAll('.filter-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                currentFilter = this.dataset.filter;
+                renderVehicleList(vehicleData, currentFilter);
+            });
+        });
+        
+        // ============ SEARCH ============
+        document.getElementById('searchVehicle').addEventListener('input', function() {
+            const term = this.value.toLowerCase();
+            const filtered = term ? vehicleData.filter(v => 
+                v.name.toLowerCase().includes(term) || 
+                v.number.toLowerCase().includes(term) ||
+                v.driver.toLowerCase().includes(term)
+            ) : vehicleData;
+            renderVehicleList(filtered, currentFilter);
+        });
+        
+        // ============ MAP CONTROLS ============
+        document.getElementById('btnZoomIn').addEventListener('click', () => map.zoomIn());
+        document.getElementById('btnZoomOut').addEventListener('click', () => map.zoomOut());
+        
+        document.getElementById('btnFitAll').addEventListener('click', () => {
+            if (Object.keys(markers).length > 0) {
+                const group = L.featureGroup(Object.values(markers));
+                map.fitBounds(group.getBounds().pad(0.1));
+            }
+        });
+        
+        let satelliteMode = false;
+        document.getElementById('btnSatellite').addEventListener('click', function() {
+            satelliteMode = !satelliteMode;
+            this.classList.toggle('active');
+            
+            map.eachLayer(layer => {
+                if (layer instanceof L.TileLayer) map.removeLayer(layer);
+            });
+            
+            if (satelliteMode) {
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Sarvam GPS',
+                    maxZoom: 19
+                }).addTo(map);
+            } else {
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: 'Sarvam GPS',
+                    maxZoom: 19
+                }).addTo(map);
+            }
+        });
+        
+        document.getElementById('btnFollow').addEventListener('click', function() {
+            followMode = !followMode;
+            this.classList.toggle('active');
+            this.innerHTML = followMode ? '<i class="fas fa-lock"></i>' : '<i class="fas fa-crosshairs"></i>';
+            this.title = followMode ? 'Unfollow' : 'Follow Selected';
+        });
+        
+        // ============ REAL-TIME UPDATE ============
+        function updatePositions() {
+            vehicleData.forEach(v => {
+                if (v.status === 'moving') {
+                    v.lat += (Math.random() - 0.5) * 0.002;
+                    v.lng += (Math.random() - 0.5) * 0.002;
+                    v.speed = Math.floor(Math.random() * 80) + 5;
+                    v.lastUpdate = new Date();
+                }
+            });
+            
+            renderMarkers(vehicleData);
+            renderVehicleList(vehicleData, currentFilter);
+            
+            if (selectedVehicle && followMode) {
+                const v = vehicleData.find(ve => ve.id === selectedVehicle);
+                if (v) map.panTo([v.lat, v.lng]);
+            }
+        }
+        
+        // ============ LOAD DATA ============
+        function loadData() {
+            vehicleData = generateVehicles(100); // Demo: 100 vehicles. For 10,000, use pagination/clustering
+            renderVehicleList(vehicleData);
+            renderMarkers(vehicleData);
+        }
+        
+        // ============ INIT ============
+        initMap();
+        loadData();
+        
+        // Auto update every 5 seconds
+        setInterval(updatePositions, 5000);
+        
+        // Viewport optimization for 10,000 vehicles
+        map.on('moveend zoomend', () => {
+            renderMarkers(vehicleData);
+        });
+        
+        // URL parameter for direct vehicle tracking
+        const urlParams = new URLSearchParams(window.location.search);
+        const trackVehicleId = urlParams.get('vehicle');
+        if (trackVehicleId) {
+            setTimeout(() => selectVehicle(trackVehicleId), 500);
+        }
+        
+        function viewRouteHistory() {
+            if (selectedVehicle) {
+                window.location.href = `routes.html?vehicle=${selectedVehicle}`;
+            }
+        }
+        
+        function shareLocation() {
+            if (selectedVehicle) {
+                const v = vehicleData.find(ve => ve.id === selectedVehicle);
+                if (v) {
+                    const url = `https://maps.google.com/?q=${v.lat},${v.lng}`;
+                    navigator.clipboard.writeText(url);
+                    alert('Location link copied to clipboard!');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

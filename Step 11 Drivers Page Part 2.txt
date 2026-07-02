@@ -1,0 +1,837 @@
+<!-- drivers.html -->
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drivers | Sarvam Automation GPS</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #e94560; --primary-dark: #c73e54;
+            --sidebar-bg: #1a1a2e; --sidebar-width: 260px; --sidebar-collapsed: 70px;
+            --header-height: 65px;
+            --success: #2ecc71; --warning: #f39c12; --danger: #e74c3c; --info: #3498db; --offline: #95a5a6;
+        }
+
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f7fa; color: #1a1a2e; min-height: 100vh; }
+
+        /* ========== SIDEBAR ========== */
+        .sidebar { position: fixed; left: 0; top: 0; width: var(--sidebar-width); height: 100vh; background: var(--sidebar-bg); z-index: 100; transition: width 0.3s; overflow: hidden; }
+        .sidebar.collapsed { width: var(--sidebar-collapsed); }
+        
+        .sidebar-header { height: var(--header-height); display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-header .logo-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary), #ff6b6b); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .sidebar-header .logo-icon i { color: white; font-size: 18px; }
+        .sidebar-header .logo-text { color: white; font-size: 18px; font-weight: 700; margin-left: 12px; white-space: nowrap; opacity: 1; transition: opacity 0.3s; }
+        .sidebar.collapsed .logo-text { opacity: 0; width: 0; }
+
+        .sidebar-menu { padding: 15px 0; }
+        .menu-item { display: flex; align-items: center; padding: 12px 20px; color: rgba(255,255,255,0.7); text-decoration: none; transition: all 0.3s; cursor: pointer; border-left: 3px solid transparent; }
+        .menu-item:hover, .menu-item.active { color: white; background: rgba(255,255,255,0.05); border-left-color: var(--primary); }
+        .menu-item i { width: 24px; font-size: 16px; text-align: center; flex-shrink: 0; }
+        .menu-item span { margin-left: 12px; white-space: nowrap; opacity: 1; transition: opacity 0.3s; font-size: 14px; }
+        .sidebar.collapsed .menu-item span { opacity: 0; width: 0; }
+        .menu-item.active { background: rgba(233,69,96,0.15); color: var(--primary); }
+
+        .sidebar-footer { position: absolute; bottom: 0; left: 0; right: 0; padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .toggle-btn { width: 100%; background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.3s; }
+        .toggle-btn:hover { background: rgba(255,255,255,0.2); }
+        .toggle-btn span { white-space: nowrap; transition: opacity 0.3s; }
+        .sidebar.collapsed .toggle-btn span { opacity: 0; width: 0; }
+
+        /* ========== MAIN CONTENT ========== */
+        .main-content { margin-left: var(--sidebar-width); transition: margin-left 0.3s; min-height: 100vh; }
+        .sidebar.collapsed ~ .main-content { margin-left: var(--sidebar-collapsed); }
+
+        /* ========== HEADER ========== */
+        .header { height: var(--header-height); background: white; display: flex; align-items: center; justify-content: space-between; padding: 0 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 50; }
+        .header-left h1 { font-size: 20px; font-weight: 600; }
+        .header-left p { font-size: 12px; color: #888; margin-top: 2px; }
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        
+        .search-box { position: relative; }
+        .search-box input { width: 280px; padding: 9px 15px 9px 38px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 13px; outline: none; transition: border-color 0.3s; }
+        .search-box input:focus { border-color: var(--primary); }
+        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 13px; }
+
+        .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; transition: all 0.3s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-outline { background: white; border: 1px solid #e0e0e0; color: #555; }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-success { background: var(--success); color: white; }
+
+        .notification { position: relative; width: 38px; height: 38px; border-radius: 10px; background: #f5f7fa; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.3s; }
+        .notification:hover { background: #eee; }
+        .notification i { font-size: 16px; color: #555; }
+        .notification .badge { position: absolute; top: -2px; right: -2px; width: 18px; height: 18px; background: var(--danger); color: white; font-size: 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+
+        .user-avatar { width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, var(--primary), #ff6b6b); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px; cursor: pointer; }
+
+        /* ========== STATS CARDS ========== */
+        .stats-section { padding: 25px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .stat-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 15px; transition: transform 0.3s, box-shadow 0.3s; cursor: pointer; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+        .stat-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .stat-icon.blue { background: rgba(52,152,219,0.1); color: var(--info); }
+        .stat-icon.green { background: rgba(46,204,113,0.1); color: var(--success); }
+        .stat-icon.orange { background: rgba(243,156,18,0.1); color: var(--warning); }
+        .stat-icon.gray { background: rgba(149,165,166,0.1); color: var(--offline); }
+        .stat-info h3 { font-size: 24px; font-weight: 700; }
+        .stat-info p { font-size: 13px; color: #888; margin-top: 2px; }
+
+        /* ========== FILTERS BAR ========== */
+        .filters-bar { padding: 0 25px 20px; display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap; }
+        .filter-group { display: flex; align-items: center; gap: 10px; }
+        .filter-group label { font-size: 13px; color: #666; font-weight: 500; }
+        .filter-select { padding: 8px 14px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; background: white; cursor: pointer; }
+        .filter-select:focus { border-color: var(--primary); }
+
+        /* ========== DRIVERS GRID ========== */
+        .drivers-section { padding: 0 25px 25px; }
+        .drivers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+
+        .driver-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.04); transition: transform 0.3s, box-shadow 0.3s; cursor: pointer; }
+        .driver-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.1); }
+
+        .driver-header { padding: 20px; display: flex; align-items: center; gap: 15px; position: relative; }
+        .driver-avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #f0f0f0; }
+        .driver-avatar-placeholder { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), #ff6b6b); display: flex; align-items: center; justify-content: center; color: white; font-size: 22px; font-weight: 700; border: 3px solid #f0f0f0; }
+        .driver-info h4 { font-size: 16px; font-weight: 600; }
+        .driver-info p { font-size: 12px; color: #888; margin-top: 3px; }
+        
+        .status-badge { position: absolute; top: 20px; right: 20px; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .status-online { background: rgba(46,204,113,0.12); color: var(--success); }
+        .status-ontrip { background: rgba(243,156,18,0.12); color: var(--warning); }
+        .status-offline { background: rgba(149,165,166,0.12); color: var(--offline); }
+        .status-idle { background: rgba(52,152,219,0.12); color: var(--info); }
+
+        .driver-body { padding: 0 20px 15px; }
+        .info-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { font-size: 12px; color: #888; display: flex; align-items: center; gap: 6px; }
+        .info-label i { font-size: 13px; width: 16px; color: var(--primary); }
+        .info-value { font-size: 13px; font-weight: 500; color: #333; }
+
+        .driver-footer { padding: 15px 20px; display: flex; gap: 10px; border-top: 1px solid #f5f5f5; }
+        .driver-footer .btn { flex: 1; justify-content: center; padding: 8px 12px; font-size: 12px; }
+
+        /* ========== PAGINATION ========== */
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 20px; }
+        .page-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e0e0e0; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.3s; }
+        .page-btn:hover, .page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ========== MODAL ========== */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 20px; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto; animation: modalIn 0.3s ease; }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        .modal-header { padding: 20px 25px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { font-size: 18px; }
+        .modal-close { width: 32px; height: 32px; border-radius: 8px; border: none; background: #f5f5f5; cursor: pointer; font-size: 16px; color: #666; transition: background 0.3s; }
+        .modal-close:hover { background: #eee; }
+        .modal-body { padding: 25px; }
+
+        /* Driver Detail Modal */
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .detail-section { background: #f8f9fa; border-radius: 12px; padding: 15px; }
+        .detail-section h4 { font-size: 13px; color: #888; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .detail-item { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+        .detail-item span:first-child { color: #666; }
+        .detail-item span:last-child { font-weight: 500; }
+
+        .detail-avatar { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), #ff6b6b); display: flex; align-items: center; justify-content: center; color: white; font-size: 28px; font-weight: 700; margin: 0 auto 15px; }
+
+        /* Map in modal */
+        #map { height: 250px; border-radius: 12px; margin-top: 15px; }
+
+        /* Charts */
+        .chart-container { position: relative; height: 200px; margin-top: 15px; }
+
+        /* Form */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #555; }
+        .form-group input, .form-group select { width: 100%; padding: 10px 14px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.3s; }
+        .form-group input:focus, .form-group select:focus { border-color: var(--primary); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        /* Toast */
+        .toast { position: fixed; bottom: 25px; right: 25px; background: #333; color: white; padding: 12px 20px; border-radius: 10px; display: none; align-items: center; gap: 10px; z-index: 2000; animation: toastIn 0.3s ease; }
+        .toast.show { display: flex; }
+        @keyframes toastIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 1200px) { .stats-section { grid-template-columns: repeat(2, 1fr); } .detail-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); width: var(--sidebar-width); }
+            .main-content { margin-left: 0 !important; }
+            .stats-section { grid-template-columns: 1fr; }
+            .drivers-grid { grid-template-columns: 1fr; }
+            .search-box input { width: 180px; }
+            .header-left h1 { font-size: 16px; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon"><i class="fas fa-satellite-dish"></i></div>
+            <span class="logo-text">Sarvam GPS</span>
+        </div>
+        <nav class="sidebar-menu">
+            <a href="dashboard.html" class="menu-item"><i class="fas fa-th-large"></i><span>Dashboard</span></a>
+            <a href="vehicles.html" class="menu-item"><i class="fas fa-car"></i><span>Vehicles</span></a>
+            <a href="drivers.html" class="menu-item active"><i class="fas fa-id-card"></i><span>Drivers</span></a>
+            <a href="tracking.html" class="menu-item"><i class="fas fa-map-marked-alt"></i><span>Live Tracking</span></a>
+            <a href="trips.html" class="menu-item"><i class="fas fa-route"></i><span>Trips</span></a>
+            <a href="alerts.html" class="menu-item"><i class="fas fa-bell"></i><span>Alerts</span></a>
+            <a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i><span>Reports</span></a>
+            <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i><span>Settings</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="toggle-btn" onclick="toggleSidebar()">
+                <i class="fas fa-chevron-left" id="toggleIcon"></i>
+                <span>Collapse</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="header-left">
+                <h1>Drivers Management</h1>
+                <p>Manage and track all your drivers in real-time</p>
+            </div>
+            <div class="header-right">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search drivers..." id="searchInput">
+                </div>
+                <button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> Add Driver</button>
+                <button class="btn btn-outline" onclick="exportToExcel()"><i class="fas fa-file-excel"></i> Export</button>
+                <div class="notification"><i class="fas fa-bell"></i><span class="badge">3</span></div>
+                <div class="user-avatar">AD</div>
+            </div>
+        </header>
+
+        <!-- STATS CARDS -->
+        <section class="stats-section">
+            <div class="stat-card" onclick="filterByStatus('all')">
+                <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+                <div class="stat-info">
+                    <h3 id="totalCount">48</h3>
+                    <p>Total Drivers</p>
+                </div>
+            </div>
+            <div class="stat-card" onclick="filterByStatus('online')">
+                <div class="stat-icon green"><i class="fas fa-signal"></i></div>
+                <div class="stat-info">
+                    <h3 id="onlineCount">32</h3>
+                    <p>Online Now</p>
+                </div>
+            </div>
+            <div class="stat-card" onclick="filterByStatus('ontrip')">
+                <div class="stat-icon orange"><i class="fas fa-road"></i></div>
+                <div class="stat-info">
+                    <h3 id="tripCount">18</h3>
+                    <p>On Trip</p>
+                </div>
+            </div>
+            <div class="stat-card" onclick="filterByStatus('offline')">
+                <div class="stat-icon gray"><i class="fas fa-power-off"></i></div>
+                <div class="stat-info">
+                    <h3 id="offlineCount">16</h3>
+                    <p>Offline</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- FILTERS -->
+        <div class="filters-bar">
+            <div class="filter-group">
+                <label>Status:</label>
+                <select class="filter-select" id="statusFilter" onchange="applyFilters()">
+                    <option value="all">All Status</option>
+                    <option value="online">Online</option>
+                    <option value="ontrip">On Trip</option>
+                    <option value="idle">Idle</option>
+                    <option value="offline">Offline</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Vehicle:</label>
+                <select class="filter-select" id="vehicleFilter" onchange="applyFilters()">
+                    <option value="all">All Types</option>
+                    <option value="SUV">SUV</option>
+                    <option value="Sedan">Sedan</option>
+                    <option value="Truck">Truck</option>
+                    <option value="Mini Van">Mini Van</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Zone:</label>
+                <select class="filter-select" id="zoneFilter" onchange="applyFilters()">
+                    <option value="all">All Zones</option>
+                    <option value="Zone A">Zone A - Ahmedabad</option>
+                    <option value="Zone B">Zone B - Surat</option>
+                    <option value="Zone C">Zone C - Vadodara</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- DRIVERS GRID -->
+        <section class="drivers-section">
+            <div class="drivers-grid" id="driversGrid"></div>
+            <div class="pagination" id="pagination"></div>
+        </section>
+    </main>
+
+    <!-- DRIVER DETAIL MODAL -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-circle" style="color: var(--primary); margin-right: 8px;"></i>Driver Details</h2>
+                <button class="modal-close" onclick="closeModal('detailModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div class="detail-avatar" id="detailAvatar">RP</div>
+                    <h3 id="detailName">Rajesh Patel</h3>
+                    <span class="status-badge status-online" id="detailStatus" style="position: static; display: inline-block; margin-top: 8px;">Online</span>
+                </div>
+                <div class="detail-grid">
+                    <div class="detail-section">
+                        <h4><i class="fas fa-info-circle"></i> Personal Info</h4>
+                        <div class="detail-item"><span>Phone</span><span id="detailPhone">+91 98765 43210</span></div>
+                        <div class="detail-item"><span>Email</span><span id="detailEmail">rajesh@email.com</span></div>
+                        <div class="detail-item"><span>License</span><span id="detailLicense">GJ-12345678</span></div>
+                        <div class="detail-item"><span>Join Date</span><span>15 Jan 2023</span></div>
+                    </div>
+                    <div class="detail-section">
+                        <h4><i class="fas fa-car"></i> Vehicle Info</h4>
+                        <div class="detail-item"><span>Vehicle No</span><span id="detailVehicle">GJ-01-AB-1234</span></div>
+                        <div class="detail-item"><span>Type</span><span id="detailType">SUV - Toyota Innova</span></div>
+                        <div class="detail-item"><span>Zone</span><span id="detailZone">Zone A</span></div>
+                        <div class="detail-item"><span>Last Service</span><span>10 Jun 2026</span></div>
+                    </div>
+                </div>
+                <div class="detail-section" style="margin-top: 15px;">
+                    <h4><i class="fas fa-chart-line"></i> Performance Analytics</h4>
+                    <div class="chart-container">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+                <div class="detail-section" style="margin-top: 15px;">
+                    <h4><i class="fas fa-map-marked-alt"></i> Live Location</h4>
+                    <div id="map"></div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn btn-primary" style="flex: 1;" onclick="trackCurrentDriver()"><i class="fas fa-map-marked-alt"></i> Track Live</button>
+                    <button class="btn btn-outline" style="flex: 1;" onclick="editCurrentDriver()"><i class="fas fa-edit"></i> Edit</button>
+                    <button class="btn btn-danger" style="flex: 1;" onclick="deleteCurrentDriver()"><i class="fas fa-trash"></i> Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADD/EDIT DRIVER MODAL -->
+    <div class="modal-overlay" id="formModal">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="formTitle"><i class="fas fa-user-plus" style="color: var(--primary); margin-right: 8px;"></i>Add New Driver</h2>
+                <button class="modal-close" onclick="closeModal('formModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="driverForm" onsubmit="saveDriver(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>First Name</label>
+                            <input type="text" id="firstName" required placeholder="Enter first name">
+                        </div>
+                        <div class="form-group">
+                            <label>Last Name</label>
+                            <input type="text" id="lastName" required placeholder="Enter last name">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="tel" id="phone" required placeholder="+91 98765 43210">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="email" placeholder="driver@email.com">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Vehicle Number</label>
+                            <input type="text" id="vehicleNo" required placeholder="GJ-01-AB-1234">
+                        </div>
+                        <div class="form-group">
+                            <label>Vehicle Type</label>
+                            <select id="vehicleType" required>
+                                <option value="">Select Type</option>
+                                <option value="SUV">SUV</option>
+                                <option value="Sedan">Sedan</option>
+                                <option value="Truck">Truck</option>
+                                <option value="Mini Van">Mini Van</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Vehicle Model</label>
+                            <input type="text" id="vehicleModel" placeholder="Toyota Innova">
+                        </div>
+                        <div class="form-group">
+                            <label>Zone</label>
+                            <select id="zone" required>
+                                <option value="">Select Zone</option>
+                                <option value="Zone A">Zone A - Ahmedabad</option>
+                                <option value="Zone B">Zone B - Surat</option>
+                                <option value="Zone C">Zone C - Vadodara</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>License Number</label>
+                        <input type="text" id="license" placeholder="GJ-12345678">
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button type="submit" class="btn btn-primary" style="flex: 1;"><i class="fas fa-save"></i> Save Driver</button>
+                        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeModal('formModal')">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle" style="color: var(--success);"></i>
+        <span id="toastMessage">Operation successful!</span>
+    </div>
+
+    <script>
+        // ========== DATA ==========
+        let drivers = [
+            { id: 1, name: 'Rajesh Patel', phone: '+91 98765 43210', email: 'rajesh@email.com', license: 'GJ-12345678', vehicle: 'GJ-01-AB-1234', type: 'SUV', model: 'Toyota Innova', status: 'online', trips: 12, rating: 4.8, zone: 'Zone A', lastSeen: '2 min ago', lat: 23.0225, lng: 72.5714 },
+            { id: 2, name: 'Mahesh Sharma', phone: '+91 98765 43211', email: 'mahesh@email.com', license: 'GJ-87654321', vehicle: 'GJ-01-CD-5678', type: 'Sedan', model: 'Honda City', status: 'ontrip', trips: 8, rating: 4.5, zone: 'Zone B', lastSeen: 'Active now', lat: 21.1702, lng: 72.8311 },
+            { id: 3, name: 'Suresh Kumar', phone: '+91 98765 43212', email: 'suresh@email.com', license: 'GJ-11223344', vehicle: 'GJ-01-EF-9012', type: 'Truck', model: 'Tata 407', status: 'offline', trips: 5, rating: 4.2, zone: 'Zone C', lastSeen: '3 hours ago', lat: 22.3072, lng: 73.1812 },
+            { id: 4, name: 'Amit Desai', phone: '+91 98765 43213', email: 'amit@email.com', license: 'GJ-55667788', vehicle: 'GJ-01-GH-3456', type: 'Mini Van', model: 'Maruti Eeco', status: 'idle', trips: 15, rating: 4.9, zone: 'Zone A', lastSeen: '15 min ago', lat: 23.2156, lng: 72.6369 },
+            { id: 5, name: 'Vikram Singh', phone: '+91 98765 43214', email: 'vikram@email.com', license: 'GJ-99887766', vehicle: 'GJ-01-IJ-7890', type: 'SUV', model: 'Mahindra XUV', status: 'online', trips: 20, rating: 4.7, zone: 'Zone B', lastSeen: 'Just now', lat: 23.0333, lng: 72.6167 },
+            { id: 6, name: 'Kiran Joshi', phone: '+91 98765 43215', email: 'kiran@email.com', license: 'GJ-44556677', vehicle: 'GJ-01-KL-1234', type: 'Sedan', model: 'Hyundai Verna', status: 'ontrip', trips: 10, rating: 4.6, zone: 'Zone A', lastSeen: 'Active now', lat: 23.0525, lng: 72.5314 },
+            { id: 7, name: 'Dinesh Patel', phone: '+91 98765 43216', email: 'dinesh@email.com', license: 'GJ-33445566', vehicle: 'GJ-01-MN-5678', type: 'Truck', model: 'Ashok Leyland', status: 'online', trips: 18, rating: 4.4, zone: 'Zone C', lastSeen: '5 min ago', lat: 22.2587, lng: 71.1924 },
+            { id: 8, name: 'Harish Mehta', phone: '+91 98765 43217', email: 'harish@email.com', license: 'GJ-22334455', vehicle: 'GJ-01-OP-9012', type: 'SUV', model: 'Fortuner', status: 'offline', trips: 7, rating: 4.3, zone: 'Zone B', lastSeen: '2 hours ago', lat: 21.7645, lng: 72.1519 },
+            { id: 9, name: 'Prakash Rao', phone: '+91 98765 43218', email: 'prakash@email.com', license: 'GJ-66778899', vehicle: 'GJ-01-QR-3456', type: 'Sedan', model: 'Swift Dzire', status: 'idle', trips: 22, rating: 4.8, zone: 'Zone A', lastSeen: '30 min ago', lat: 23.1225, lng: 72.5714 },
+            { id: 10, name: 'Sanjay Gupta', phone: '+91 98765 43219', email: 'sanjay@email.com', license: 'GJ-77889900', vehicle: 'GJ-01-ST-7890', type: 'Mini Van', model: 'WagonR', status: 'online', trips: 14, rating: 4.5, zone: 'Zone C', lastSeen: '1 min ago', lat: 22.4152, lng: 73.2012 },
+            { id: 11, name: 'Ravi Verma', phone: '+91 98765 43220', email: 'ravi@email.com', license: 'GJ-88990011', vehicle: 'GJ-01-UV-1234', type: 'Truck', model: 'Eicher', status: 'ontrip', trips: 9, rating: 4.1, zone: 'Zone A', lastSeen: 'Active now', lat: 23.3125, lng: 72.6714 },
+            { id: 12, name: 'Nitin Shah', phone: '+91 98765 43221', email: 'nitin@email.com', license: 'GJ-99001122', vehicle: 'GJ-01-WX-5678', type: 'SUV', model: 'Creta', status: 'offline', trips: 11, rating: 4.6, zone: 'Zone B', lastSeen: '4 hours ago', lat: 21.9125, lng: 72.7314 },
+        ];
+
+        let currentPage = 1;
+        const itemsPerPage = 6;
+        let currentDriverId = null;
+        let map = null;
+        let performanceChart = null;
+
+        // ========== SIDEBAR ==========
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const icon = document.getElementById('toggleIcon');
+            sidebar.classList.toggle('collapsed');
+            icon.classList.toggle('fa-chevron-left');
+            icon.classList.toggle('fa-chevron-right');
+        }
+
+        // ========== RENDER DRIVERS ==========
+        function renderDrivers(data = drivers, page = 1) {
+            const grid = document.getElementById('driversGrid');
+            grid.innerHTML = '';
+
+            const start = (page - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const paginated = data.slice(start, end);
+
+            paginated.forEach(driver => {
+                const statusClass = `status-${driver.status}`;
+                const statusText = driver.status === 'ontrip' ? 'On Trip' : driver.status.charAt(0).toUpperCase() + driver.status.slice(1);
+                const initials = driver.name.split(' ').map(n => n[0]).join('');
+
+                const card = document.createElement('div');
+                card.className = 'driver-card';
+                card.onclick = () => openDetailModal(driver.id);
+                card.innerHTML = `
+                    <div class="driver-header">
+                        <div class="driver-avatar-placeholder">${initials}</div>
+                        <div class="driver-info">
+                            <h4>${driver.name}</h4>
+                            <p>${driver.phone}</p>
+                        </div>
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="driver-body">
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-car"></i> Vehicle</span>
+                            <span class="info-value">${driver.vehicle}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-tag"></i> Type</span>
+                            <span class="info-value">${driver.type} - ${driver.model}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-map-marker-alt"></i> Zone</span>
+                            <span class="info-value">${driver.zone}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-route"></i> Trips Today</span>
+                            <span class="info-value">${driver.trips}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-star"></i> Rating</span>
+                            <span class="info-value">${driver.rating} ⭐</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-clock"></i> Last Seen</span>
+                            <span class="info-value">${driver.lastSeen}</span>
+                        </div>
+                    </div>
+                    <div class="driver-footer" onclick="event.stopPropagation()">
+                        <button class="btn btn-primary" onclick="trackDriver(${driver.id})"><i class="fas fa-map-marked-alt"></i> Track</button>
+                        <button class="btn btn-outline" onclick="callDriver('${driver.phone}')"><i class="fas fa-phone"></i> Call</button>
+                        <button class="btn btn-outline" onclick="event.stopPropagation(); openDetailModal(${driver.id})"><i class="fas fa-ellipsis-v"></i></button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            renderPagination(data.length, page);
+            updateStats();
+        }
+
+        // ========== PAGINATION ==========
+        function renderPagination(totalItems, currentPage) {
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            if (totalPages <= 1) return;
+
+            // Prev
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'page-btn';
+            prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => renderDrivers(getFilteredDrivers(), currentPage - 1);
+            pagination.appendChild(prevBtn);
+
+            // Pages
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
+                btn.textContent = i;
+                btn.onclick = () => renderDrivers(getFilteredDrivers(), i);
+                pagination.appendChild(btn);
+            }
+
+            // Next
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'page-btn';
+            nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => renderDrivers(getFilteredDrivers(), currentPage + 1);
+            pagination.appendChild(nextBtn);
+        }
+
+        // ========== FILTERS ==========
+        function getFilteredDrivers() {
+            const status = document.getElementById('statusFilter').value;
+            const vehicle = document.getElementById('vehicleFilter').value;
+            const zone = document.getElementById('zoneFilter').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
+
+            return drivers.filter(d => {
+                const matchStatus = status === 'all' || d.status === status;
+                const matchVehicle = vehicle === 'all' || d.type === vehicle;
+                const matchZone = zone === 'all' || d.zone === zone;
+                const matchSearch = d.name.toLowerCase().includes(search) || 
+                                   d.vehicle.toLowerCase().includes(search) ||
+                                   d.phone.includes(search);
+                return matchStatus && matchVehicle && matchZone && matchSearch;
+            });
+        }
+
+        function applyFilters() {
+            currentPage = 1;
+            renderDrivers(getFilteredDrivers(), 1);
+        }
+
+        function filterByStatus(status) {
+            document.getElementById('statusFilter').value = status;
+            applyFilters();
+        }
+
+        // ========== SEARCH ==========
+        document.getElementById('searchInput').addEventListener('input', () => {
+            currentPage = 1;
+            renderDrivers(getFilteredDrivers(), 1);
+        });
+
+        // ========== STATS ==========
+        function updateStats() {
+            document.getElementById('totalCount').textContent = drivers.length;
+            document.getElementById('onlineCount').textContent = drivers.filter(d => d.status === 'online').length;
+            document.getElementById('tripCount').textContent = drivers.filter(d => d.status === 'ontrip').length;
+            document.getElementById('offlineCount').textContent = drivers.filter(d => d.status === 'offline').length;
+        }
+
+        // ========== DETAIL MODAL ==========
+        function openDetailModal(id) {
+            const driver = drivers.find(d => d.id === id);
+            if (!driver) return;
+            currentDriverId = id;
+
+            document.getElementById('detailName').textContent = driver.name;
+            document.getElementById('detailPhone').textContent = driver.phone;
+            document.getElementById('detailEmail').textContent = driver.email;
+            document.getElementById('detailLicense').textContent = driver.license;
+            document.getElementById('detailVehicle').textContent = driver.vehicle;
+            document.getElementById('detailType').textContent = `${driver.type} - ${driver.model}`;
+            document.getElementById('detailZone').textContent = driver.zone;
+            document.getElementById('detailAvatar').textContent = driver.name.split(' ').map(n => n[0]).join('');
+
+            const statusBadge = document.getElementById('detailStatus');
+            statusBadge.className = `status-badge status-${driver.status}`;
+            statusBadge.textContent = driver.status === 'ontrip' ? 'On Trip' : driver.status.charAt(0).toUpperCase() + driver.status.slice(1);
+
+            document.getElementById('detailModal').classList.add('active');
+
+            // Init Map
+            setTimeout(() => {
+                if (map) { map.remove(); }
+                map = L.map('map').setView([driver.lat, driver.lng], 14);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                L.marker([driver.lat, driver.lng]).addTo(map)
+                    .bindPopup(`<b>${driver.name}</b><br>${driver.vehicle}`).openPopup();
+            }, 100);
+
+            // Init Chart
+            setTimeout(() => {
+                if (performanceChart) { performanceChart.destroy(); }
+                const ctx = document.getElementById('performanceChart').getContext('2d');
+                performanceChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                        datasets: [{
+                            label: 'Trips',
+                            data: [5, 8, 6, 12, 9, 15, driver.trips],
+                            borderColor: '#e94560',
+                            backgroundColor: 'rgba(233,69,96,0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }, {
+                            label: 'Rating',
+                            data: [4.2, 4.5, 4.3, 4.8, 4.6, 4.9, driver.rating],
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52,152,219,0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            yAxisID: 'y1'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        scales: {
+                            y: { beginAtZero: true, title: { display: true, text: 'Trips' } },
+                            y1: { type: 'linear', display: true, position: 'right', min: 3, max: 5, title: { display: true, text: 'Rating' } }
+                        }
+                    }
+                });
+            }, 100);
+        }
+
+        // ========== FORM MODAL ==========
+        function openAddModal() {
+            document.getElementById('formTitle').innerHTML = '<i class="fas fa-user-plus" style="color: var(--primary); margin-right: 8px;"></i>Add New Driver';
+            document.getElementById('driverForm').reset();
+            document.getElementById('formModal').classList.add('active');
+        }
+
+        function editCurrentDriver() {
+            closeModal('detailModal');
+            const driver = drivers.find(d => d.id === currentDriverId);
+            if (!driver) return;
+
+            document.getElementById('formTitle').innerHTML = '<i class="fas fa-edit" style="color: var(--primary); margin-right: 8px;"></i>Edit Driver';
+            const names = driver.name.split(' ');
+            document.getElementById('firstName').value = names[0];
+            document.getElementById('lastName').value = names.slice(1).join(' ');
+            document.getElementById('phone').value = driver.phone;
+            document.getElementById('email').value = driver.email;
+            document.getElementById('vehicleNo').value = driver.vehicle;
+            document.getElementById('vehicleType').value = driver.type;
+            document.getElementById('vehicleModel').value = driver.model;
+            document.getElementById('zone').value = driver.zone;
+            document.getElementById('license').value = driver.license;
+
+            document.getElementById('formModal').classList.add('active');
+        }
+
+        function saveDriver(event) {
+            event.preventDefault();
+            const firstName = document.getElementById('firstName').value;
+            const lastName = document.getElementById('lastName').value;
+            const name = `${firstName} ${lastName}`;
+
+            const newDriver = {
+                id: currentDriverId || Date.now(),
+                name: name,
+                phone: document.getElementById('phone').value,
+                email: document.getElementById('email').value,
+                license: document.getElementById('license').value,
+                vehicle: document.getElementById('vehicleNo').value,
+                type: document.getElementById('vehicleType').value,
+                model: document.getElementById('vehicleModel').value,
+                zone: document.getElementById('zone').value,
+                status: 'offline',
+                trips: 0,
+                rating: 5.0,
+                lastSeen: 'Just now',
+                lat: 23.0225 + Math.random() * 0.5,
+                lng: 72.5714 + Math.random() * 0.5
+            };
+
+            if (currentDriverId) {
+                const index = drivers.findIndex(d => d.id === currentDriverId);
+                if (index !== -1) drivers[index] = { ...drivers[index], ...newDriver, id: currentDriverId };
+                showToast('Driver updated successfully!');
+            } else {
+                drivers.push(newDriver);
+                showToast('New driver added successfully!');
+            }
+
+            currentDriverId = null;
+            closeModal('formModal');
+            applyFilters();
+        }
+
+        function deleteCurrentDriver() {
+            if (!confirm('Are you sure you want to delete this driver?')) return;
+            drivers = drivers.filter(d => d.id !== currentDriverId);
+            currentDriverId = null;
+            closeModal('detailModal');
+            applyFilters();
+            showToast('Driver deleted successfully!');
+        }
+
+        // ========== ACTIONS ==========
+        function trackDriver(id) {
+            const driver = drivers.find(d => d.id === id);
+            showToast(`Tracking ${driver.name}...`);
+            setTimeout(() => openDetailModal(id), 500);
+        }
+
+        function trackCurrentDriver() {
+            const driver = drivers.find(d => d.id === currentDriverId);
+            showToast(`Live tracking started for ${driver.name}`);
+        }
+
+        function callDriver(phone) {
+            window.location.href = `tel:${phone.replace(/\s/g, '')}`;
+        }
+
+        // ========== EXPORT ==========
+        function exportToExcel() {
+            const data = drivers.map(d => ({
+                'Name': d.name,
+                'Phone': d.phone,
+                'Email': d.email,
+                'License': d.license,
+                'Vehicle': d.vehicle,
+                'Type': d.type,
+                'Model': d.model,
+                'Status': d.status,
+                'Zone': d.zone,
+                'Trips': d.trips,
+                'Rating': d.rating
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Drivers');
+            XLSX.writeFile(wb, 'Sarvam_Drivers.xlsx');
+            showToast('Excel file downloaded!');
+        }
+
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text('Sarvam GPS - Drivers Report', 20, 20);
+            doc.text(`Total Drivers: ${drivers.length}`, 20, 40);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 50);
+            doc.save('Sarvam_Drivers_Report.pdf');
+            showToast('PDF file downloaded!');
+        }
+
+        // ========== MODAL UTILS ==========
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+            if (id === 'detailModal' && map) {
+                map.remove();
+                map = null;
+            }
+        }
+
+        // Close modal on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) closeModal(overlay.id);
+            });
+        });
+
+        // ========== TOAST ==========
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // ========== REAL-TIME STATUS UPDATE ==========
+        setInterval(() => {
+            // Randomly update some driver statuses
+            drivers.forEach(d => {
+                if (Math.random() > 0.7) {
+                    const statuses = ['online', 'ontrip', 'idle', 'offline'];
+                    d.status = statuses[Math.floor(Math.random() * statuses.length)];
+                    d.lastSeen = 'Just now';
+                }
+            });
+            if (!document.querySelector('.modal-overlay.active')) {
+                applyFilters();
+            }
+        }, 30000); // Every 30 seconds
+
+        // ========== INIT ==========
+        renderDrivers();
+    </script>
+</body>
+</html>

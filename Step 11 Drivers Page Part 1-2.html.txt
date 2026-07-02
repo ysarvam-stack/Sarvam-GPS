@@ -1,0 +1,362 @@
+<!-- drivers.html -->
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drivers | Sarvam Automation GPS</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #e94560; --primary-dark: #c73e54;
+            --sidebar-bg: #1a1a2e; --sidebar-width: 260px; --sidebar-collapsed: 70px;
+            --header-height: 65px;
+            --success: #2ecc71; --warning: #f39c12; --danger: #e74c3c; --info: #3498db; --offline: #95a5a6;
+        }
+
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f7fa; color: #1a1a2e; min-height: 100vh; }
+
+        /* ========== SIDEBAR ========== */
+        .sidebar { position: fixed; left: 0; top: 0; width: var(--sidebar-width); height: 100vh; background: var(--sidebar-bg); z-index: 100; transition: width 0.3s; overflow: hidden; }
+        .sidebar.collapsed { width: var(--sidebar-collapsed); }
+        
+        .sidebar-header { height: var(--header-height); display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-header .logo-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary), #ff6b6b); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .sidebar-header .logo-icon i { color: white; font-size: 18px; }
+        .sidebar-header .logo-text { color: white; font-size: 18px; font-weight: 700; margin-left: 12px; white-space: nowrap; opacity: 1; transition: opacity 0.3s; }
+        .sidebar.collapsed .logo-text { opacity: 0; width: 0; }
+
+        .sidebar-menu { padding: 15px 0; }
+        .menu-item { display: flex; align-items: center; padding: 12px 20px; color: rgba(255,255,255,0.7); text-decoration: none; transition: all 0.3s; cursor: pointer; border-left: 3px solid transparent; }
+        .menu-item:hover, .menu-item.active { color: white; background: rgba(255,255,255,0.05); border-left-color: var(--primary); }
+        .menu-item i { width: 24px; font-size: 16px; text-align: center; flex-shrink: 0; }
+        .menu-item span { margin-left: 12px; white-space: nowrap; opacity: 1; transition: opacity 0.3s; font-size: 14px; }
+        .sidebar.collapsed .menu-item span { opacity: 0; width: 0; }
+        .menu-item.active { background: rgba(233,69,96,0.15); color: var(--primary); }
+
+        .sidebar-footer { position: absolute; bottom: 0; left: 0; right: 0; padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .toggle-btn { width: 100%; background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.3s; }
+        .toggle-btn:hover { background: rgba(255,255,255,0.2); }
+        .toggle-btn span { white-space: nowrap; transition: opacity 0.3s; }
+        .sidebar.collapsed .toggle-btn span { opacity: 0; width: 0; }
+
+        /* ========== MAIN CONTENT ========== */
+        .main-content { margin-left: var(--sidebar-width); transition: margin-left 0.3s; min-height: 100vh; }
+        .sidebar.collapsed ~ .main-content { margin-left: var(--sidebar-collapsed); }
+
+        /* ========== HEADER ========== */
+        .header { height: var(--header-height); background: white; display: flex; align-items: center; justify-content: space-between; padding: 0 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 50; }
+        .header-left h1 { font-size: 20px; font-weight: 600; }
+        .header-left p { font-size: 12px; color: #888; margin-top: 2px; }
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        
+        .search-box { position: relative; }
+        .search-box input { width: 280px; padding: 9px 15px 9px 38px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 13px; outline: none; transition: border-color 0.3s; }
+        .search-box input:focus { border-color: var(--primary); }
+        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 13px; }
+
+        .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; transition: all 0.3s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-outline { background: white; border: 1px solid #e0e0e0; color: #555; }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+        .notification { position: relative; width: 38px; height: 38px; border-radius: 10px; background: #f5f7fa; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.3s; }
+        .notification:hover { background: #eee; }
+        .notification i { font-size: 16px; color: #555; }
+        .notification .badge { position: absolute; top: -2px; right: -2px; width: 18px; height: 18px; background: var(--danger); color: white; font-size: 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+
+        .user-avatar { width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, var(--primary), #ff6b6b); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px; cursor: pointer; }
+
+        /* ========== STATS CARDS ========== */
+        .stats-section { padding: 25px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .stat-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 15px; transition: transform 0.3s, box-shadow 0.3s; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+        .stat-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .stat-icon.blue { background: rgba(52,152,219,0.1); color: var(--info); }
+        .stat-icon.green { background: rgba(46,204,113,0.1); color: var(--success); }
+        .stat-icon.orange { background: rgba(243,156,18,0.1); color: var(--warning); }
+        .stat-icon.gray { background: rgba(149,165,166,0.1); color: var(--offline); }
+        .stat-info h3 { font-size: 24px; font-weight: 700; }
+        .stat-info p { font-size: 13px; color: #888; margin-top: 2px; }
+
+        /* ========== FILTERS BAR ========== */
+        .filters-bar { padding: 0 25px 20px; display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap; }
+        .filter-group { display: flex; align-items: center; gap: 10px; }
+        .filter-group label { font-size: 13px; color: #666; font-weight: 500; }
+        .filter-select { padding: 8px 14px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; background: white; cursor: pointer; }
+        .filter-select:focus { border-color: var(--primary); }
+
+        /* ========== DRIVERS GRID ========== */
+        .drivers-section { padding: 0 25px 25px; }
+        .drivers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+
+        .driver-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.04); transition: transform 0.3s, box-shadow 0.3s; }
+        .driver-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.1); }
+
+        .driver-header { padding: 20px; display: flex; align-items: center; gap: 15px; position: relative; }
+        .driver-avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #f0f0f0; }
+        .driver-avatar-placeholder { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), #ff6b6b); display: flex; align-items: center; justify-content: center; color: white; font-size: 22px; font-weight: 700; border: 3px solid #f0f0f0; }
+        .driver-info h4 { font-size: 16px; font-weight: 600; }
+        .driver-info p { font-size: 12px; color: #888; margin-top: 3px; }
+        
+        .status-badge { position: absolute; top: 20px; right: 20px; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .status-online { background: rgba(46,204,113,0.12); color: var(--success); }
+        .status-ontrip { background: rgba(243,156,18,0.12); color: var(--warning); }
+        .status-offline { background: rgba(149,165,166,0.12); color: var(--offline); }
+        .status-idle { background: rgba(52,152,219,0.12); color: var(--info); }
+
+        .driver-body { padding: 0 20px 15px; }
+        .info-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { font-size: 12px; color: #888; display: flex; align-items: center; gap: 6px; }
+        .info-label i { font-size: 13px; width: 16px; color: var(--primary); }
+        .info-value { font-size: 13px; font-weight: 500; color: #333; }
+
+        .driver-footer { padding: 15px 20px; display: flex; gap: 10px; border-top: 1px solid #f5f5f5; }
+        .driver-footer .btn { flex: 1; justify-content: center; padding: 8px 12px; font-size: 12px; }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 1200px) { .stats-section { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); width: var(--sidebar-width); }
+            .main-content { margin-left: 0 !important; }
+            .stats-section { grid-template-columns: 1fr; }
+            .drivers-grid { grid-template-columns: 1fr; }
+            .search-box input { width: 180px; }
+            .header-left h1 { font-size: 16px; }
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon"><i class="fas fa-satellite-dish"></i></div>
+            <span class="logo-text">Sarvam GPS</span>
+        </div>
+        <nav class="sidebar-menu">
+            <a href="dashboard.html" class="menu-item"><i class="fas fa-th-large"></i><span>Dashboard</span></a>
+            <a href="vehicles.html" class="menu-item"><i class="fas fa-car"></i><span>Vehicles</span></a>
+            <a href="drivers.html" class="menu-item active"><i class="fas fa-id-card"></i><span>Drivers</span></a>
+            <a href="tracking.html" class="menu-item"><i class="fas fa-map-marked-alt"></i><span>Live Tracking</span></a>
+            <a href="trips.html" class="menu-item"><i class="fas fa-route"></i><span>Trips</span></a>
+            <a href="alerts.html" class="menu-item"><i class="fas fa-bell"></i><span>Alerts</span></a>
+            <a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i><span>Reports</span></a>
+            <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i><span>Settings</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="toggle-btn" onclick="toggleSidebar()">
+                <i class="fas fa-chevron-left" id="toggleIcon"></i>
+                <span>Collapse</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="header-left">
+                <h1>Drivers Management</h1>
+                <p>Manage and track all your drivers in real-time</p>
+            </div>
+            <div class="header-right">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search drivers..." id="searchInput">
+                </div>
+                <button class="btn btn-primary"><i class="fas fa-plus"></i> Add Driver</button>
+                <div class="notification"><i class="fas fa-bell"></i><span class="badge">3</span></div>
+                <div class="user-avatar">AD</div>
+            </div>
+        </header>
+
+        <!-- STATS CARDS -->
+        <section class="stats-section">
+            <div class="stat-card">
+                <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+                <div class="stat-info">
+                    <h3>48</h3>
+                    <p>Total Drivers</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green"><i class="fas fa-signal"></i></div>
+                <div class="stat-info">
+                    <h3>32</h3>
+                    <p>Online Now</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon orange"><i class="fas fa-road"></i></div>
+                <div class="stat-info">
+                    <h3>18</h3>
+                    <p>On Trip</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon gray"><i class="fas fa-power-off"></i></div>
+                <div class="stat-info">
+                    <h3>16</h3>
+                    <p>Offline</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- FILTERS -->
+        <div class="filters-bar">
+            <div class="filter-group">
+                <label>Status:</label>
+                <select class="filter-select" id="statusFilter">
+                    <option value="all">All Status</option>
+                    <option value="online">Online</option>
+                    <option value="ontrip">On Trip</option>
+                    <option value="idle">Idle</option>
+                    <option value="offline">Offline</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Vehicle:</label>
+                <select class="filter-select">
+                    <option>All Types</option>
+                    <option>SUV</option>
+                    <option>Sedan</option>
+                    <option>Truck</option>
+                    <option>Mini Van</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Zone:</label>
+                <select class="filter-select">
+                    <option>All Zones</option>
+                    <option>Zone A - Ahmedabad</option>
+                    <option>Zone B - Surat</option>
+                    <option>Zone C - Vadodara</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- DRIVERS GRID -->
+        <section class="drivers-section">
+            <div class="drivers-grid" id="driversGrid">
+                <!-- Driver cards will be generated by JS -->
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // ========== SIDEBAR TOGGLE ==========
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const icon = document.getElementById('toggleIcon');
+            sidebar.classList.toggle('collapsed');
+            icon.classList.toggle('fa-chevron-left');
+            icon.classList.toggle('fa-chevron-right');
+        }
+
+        // ========== DRIVER DATA ==========
+        const drivers = [
+            { id: 1, name: 'Rajesh Patel', phone: '+91 98765 43210', vehicle: 'GJ-01-AB-1234', type: 'SUV', model: 'Toyota Innova', status: 'online', trips: 12, rating: 4.8, zone: 'Zone A', lastSeen: '2 min ago' },
+            { id: 2, name: 'Mahesh Sharma', phone: '+91 98765 43211', vehicle: 'GJ-01-CD-5678', type: 'Sedan', model: 'Honda City', status: 'ontrip', trips: 8, rating: 4.5, zone: 'Zone B', lastSeen: 'Active now' },
+            { id: 3, name: 'Suresh Kumar', phone: '+91 98765 43212', vehicle: 'GJ-01-EF-9012', type: 'Truck', model: 'Tata 407', status: 'offline', trips: 5, rating: 4.2, zone: 'Zone C', lastSeen: '3 hours ago' },
+            { id: 4, name: 'Amit Desai', phone: '+91 98765 43213', vehicle: 'GJ-01-GH-3456', type: 'Mini Van', model: 'Maruti Eeco', status: 'idle', trips: 15, rating: 4.9, zone: 'Zone A', lastSeen: '15 min ago' },
+            { id: 5, name: 'Vikram Singh', phone: '+91 98765 43214', vehicle: 'GJ-01-IJ-7890', type: 'SUV', model: 'Mahindra XUV', status: 'online', trips: 20, rating: 4.7, zone: 'Zone B', lastSeen: 'Just now' },
+            { id: 6, name: 'Kiran Joshi', phone: '+91 98765 43215', vehicle: 'GJ-01-KL-1234', type: 'Sedan', model: 'Hyundai Verna', status: 'ontrip', trips: 10, rating: 4.6, zone: 'Zone A', lastSeen: 'Active now' },
+        ];
+
+        // ========== RENDER DRIVERS ==========
+        function renderDrivers(filterStatus = 'all', searchTerm = '') {
+            const grid = document.getElementById('driversGrid');
+            grid.innerHTML = '';
+
+            let filtered = drivers.filter(d => {
+                const matchStatus = filterStatus === 'all' || d.status === filterStatus;
+                const matchSearch = d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                   d.vehicle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                   d.phone.includes(searchTerm);
+                return matchStatus && matchSearch;
+            });
+
+            filtered.forEach(driver => {
+                const statusClass = `status-${driver.status}`;
+                const statusText = driver.status === 'ontrip' ? 'On Trip' : driver.status.charAt(0).toUpperCase() + driver.status.slice(1);
+                const initials = driver.name.split(' ').map(n => n[0]).join('');
+
+                const card = document.createElement('div');
+                card.className = 'driver-card';
+                card.innerHTML = `
+                    <div class="driver-header">
+                        <div class="driver-avatar-placeholder">${initials}</div>
+                        <div class="driver-info">
+                            <h4>${driver.name}</h4>
+                            <p>${driver.phone}</p>
+                        </div>
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="driver-body">
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-car"></i> Vehicle</span>
+                            <span class="info-value">${driver.vehicle}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-tag"></i> Type</span>
+                            <span class="info-value">${driver.type} - ${driver.model}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-map-marker-alt"></i> Zone</span>
+                            <span class="info-value">${driver.zone}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-route"></i> Trips Today</span>
+                            <span class="info-value">${driver.trips}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-star"></i> Rating</span>
+                            <span class="info-value">${driver.rating} ⭐</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-clock"></i> Last Seen</span>
+                            <span class="info-value">${driver.lastSeen}</span>
+                        </div>
+                    </div>
+                    <div class="driver-footer">
+                        <button class="btn btn-primary" onclick="trackDriver(${driver.id})"><i class="fas fa-map-marked-alt"></i> Track</button>
+                        <button class="btn btn-outline" onclick="callDriver('${driver.phone}')"><i class="fas fa-phone"></i> Call</button>
+                        <button class="btn btn-outline"><i class="fas fa-ellipsis-v"></i></button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // ========== ACTIONS ==========
+        function trackDriver(id) {
+            const driver = drivers.find(d => d.id === id);
+            alert(`🗺️ Tracking ${driver.name}...\nLocation: ${driver.zone}\nVehicle: ${driver.vehicle}`);
+            // In real app: window.location.href = `tracking.html?driver=${id}`;
+        }
+
+        function callDriver(phone) {
+            window.location.href = `tel:${phone.replace(/\s/g, '')}`;
+        }
+
+        // ========== EVENT LISTENERS ==========
+        document.getElementById('statusFilter').addEventListener('change', (e) => {
+            renderDrivers(e.target.value, document.getElementById('searchInput').value);
+        });
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            renderDrivers(document.getElementById('statusFilter').value, e.target.value);
+        });
+
+        // ========== INIT ==========
+        renderDrivers();
+    </script>
+</body>
+</html>

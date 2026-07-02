@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings | Sarvam Automation GPS</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #e94560; --primary-dark: #c73e54;
+            --sidebar-bg: #1a1a2e; --sidebar-width: 260px; --sidebar-collapsed: 70px;
+            --header-height: 65px;
+            --success: #2ecc71; --warning: #f39c12; --danger: #e74c3c; --info: #3498db;
+        }
+
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f7fa; color: #1a1a2e; min-height: 100vh; }
+
+        /* Sidebar */
+        .sidebar { position: fixed; left: 0; top: 0; width: var(--sidebar-width); height: 100vh; background: var(--sidebar-bg); z-index: 100; transition: width 0.3s; overflow: hidden; }
+        .sidebar.collapsed { width: var(--sidebar-collapsed); }
+        .sidebar-header { height: var(--header-height); display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-header .logo-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary), #ff6b6b); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .sidebar-header .logo-icon i { color: white; font-size: 18px; }
+        .sidebar-header .logo-text { color: white; font-size: 18px; font-weight: 700; margin-left: 12px; white-space: nowrap; opacity: 1; transition: opacity 0.3s; }
+        .sidebar.collapsed .logo-text { opacity: 0; width: 0; }
+
+        .sidebar-menu { padding: 15px 0; }
+        .menu-item { display: flex; align-items: center; padding: 12px 20px; color: rgba(255,255,255,0.7); text-decoration: none; transition: all 0.3s; cursor: pointer; border-left: 3px solid transparent; }
+        .menu-item:hover, .menu-item.active { color: white; background: rgba(255,255,255,0.05); border-left-color: var(--primary); }
+        .menu-item i { width: 24px; font-size: 16px; text-align: center; flex-shrink: 0; }
+        .menu-item span { margin-left: 12px; white-space: nowrap; opacity: 1; transition: opacity 0.3s; font-size: 14px; }
+        .sidebar.collapsed .menu-item span { opacity: 0; width: 0; }
+        .menu-item.active { background: rgba(233,69,96,0.15); color: var(--primary); }
+
+        .sidebar-footer { position: absolute; bottom: 0; left: 0; right: 0; padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .toggle-btn { width: 100%; background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.3s; }
+        .toggle-btn:hover { background: rgba(255,255,255,0.2); }
+        .toggle-btn span { white-space: nowrap; transition: opacity 0.3s; }
+        .sidebar.collapsed .toggle-btn span { opacity: 0; width: 0; }
+
+        .main-content { margin-left: var(--sidebar-width); transition: margin-left 0.3s; min-height: 100vh; }
+        .sidebar.collapsed ~ .main-content { margin-left: var(--sidebar-collapsed); }
+
+        /* Header */
+        .header { height: var(--header-height); background: white; display: flex; align-items: center; justify-content: space-between; padding: 0 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 50; }
+        .header-left h1 { font-size: 20px; font-weight: 600; }
+        .header-left p { font-size: 12px; color: #888; margin-top: 2px; }
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        
+        .notification { position: relative; width: 38px; height: 38px; border-radius: 10px; background: #f5f7fa; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .notification i { font-size: 16px; color: #555; }
+        .notification .badge { position: absolute; top: -2px; right: -2px; width: 18px; height: 18px; background: var(--danger); color: white; font-size: 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+
+        .user-avatar { width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, var(--primary), #ff6b6b); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px; }
+
+        /* Settings Layout */
+        .settings-container { padding: 25px; display: grid; grid-template-columns: 280px 1fr; gap: 25px; }
+
+        /* Settings Sidebar */
+        .settings-nav { background: white; border-radius: 16px; padding: 15px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); height: fit-content; position: sticky; top: 85px; }
+        .settings-nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 15px; border-radius: 10px; cursor: pointer; transition: all 0.3s; margin-bottom: 5px; }
+        .settings-nav-item:hover, .settings-nav-item.active { background: rgba(233,69,96,0.08); color: var(--primary); }
+        .settings-nav-item i { width: 20px; font-size: 16px; }
+        .settings-nav-item span { font-size: 14px; font-weight: 500; }
+
+        /* Settings Content */
+        .settings-content { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+        .settings-section { display: none; }
+        .settings-section.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .settings-section h2 { font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .settings-section h2 i { color: var(--primary); }
+
+        /* Form Elements */
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 8px; color: #555; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 14px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.3s; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        .form-hint { font-size: 12px; color: #888; margin-top: 5px; }
+
+        /* Toggle Switch */
+        .toggle-switch { position: relative; width: 50px; height: 26px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 26px; transition: 0.3s; }
+        .toggle-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+        .toggle-switch input:checked + .toggle-slider { background: var(--primary); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(24px); }
+
+        /* Setting Row */
+        .setting-row { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; border-bottom: 1px solid #f0f0f0; }
+        .setting-row:last-child { border-bottom: none; }
+        .setting-info h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+        .setting-info p { font-size: 12px; color: #888; }
+
+        /* Color Theme */
+        .theme-colors { display: flex; gap: 10px; margin-top: 10px; }
+        .color-option { width: 36px; height: 36px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: all 0.3s; }
+        .color-option:hover, .color-option.active { border-color: #333; transform: scale(1.1); }
+        .color-red { background: #e94560; }
+        .color-blue { background: #3498db; }
+        .color-green { background: #27ae60; }
+        .color-purple { background: #9b59b6; }
+        .color-orange { background: #e67e22; }
+
+        /* Language Select */
+        .lang-option { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.3s; border: 2px solid transparent; }
+        .lang-option:hover { background: #f8f9fa; }
+        .lang-option.active { border-color: var(--primary); background: rgba(233,69,96,0.05); }
+        .lang-flag { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .lang-name { font-size: 14px; font-weight: 500; }
+
+        /* Backup Card */
+        .backup-card { background: #f8f9fa; border-radius: 12px; padding: 20px; margin-bottom: 15px; }
+        .backup-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+        .backup-card p { font-size: 12px; color: #888; margin-bottom: 10px; }
+        .backup-card .btn { margin-top: 5px; }
+
+        /* API Key */
+        .api-key-box { display: flex; align-items: center; gap: 10px; background: #f8f9fa; padding: 10px 14px; border-radius: 8px; }
+        .api-key-box input { flex: 1; border: none; background: transparent; font-family: monospace; font-size: 13px; outline: none; }
+        .api-key-box button { padding: 6px 12px; font-size: 12px; }
+
+        .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; transition: all 0.3s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-outline { background: white; border: 1px solid #e0e0e0; color: #555; }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+
+        /* Save Bar */
+        .save-bar { position: sticky; bottom: 0; background: white; padding: 15px 25px; border-top: 1px solid #f0f0f0; display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+        /* Responsive */
+        @media (max-width: 1200px) { 
+            .settings-container { grid-template-columns: 1fr; } 
+            .settings-nav { position: static; display: flex; overflow-x: auto; gap: 5px; }
+            .settings-nav-item { white-space: nowrap; margin-bottom: 0; }
+        }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); width: var(--sidebar-width); }
+            .main-content { margin-left: 0 !important; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon"><i class="fas fa-satellite-dish"></i></div>
+            <span class="logo-text">Sarvam GPS</span>
+        </div>
+        <nav class="sidebar-menu">
+            <a href="dashboard.html" class="menu-item"><i class="fas fa-th-large"></i><span>Dashboard</span></a>
+            <a href="vehicles.html" class="menu-item"><i class="fas fa-car"></i><span>Vehicles</span></a>
+            <a href="drivers.html" class="menu-item"><i class="fas fa-id-card"></i><span>Drivers</span></a>
+            <a href="live-tracking.html" class="menu-item"><i class="fas fa-map-marked-alt"></i><span>Live Tracking</span></a>
+            <a href="history.html" class="menu-item"><i class="fas fa-route"></i><span>Route History</span></a>
+            <a href="fuel-reports.html" class="menu-item"><i class="fas fa-gas-pump"></i><span>Fuel Reports</span></a>
+            <a href="fuel-alerts.html" class="menu-item"><i class="fas fa-bell"></i><span>Fuel Alerts</span></a>
+            <a href="stop-reports.html" class="menu-item"><i class="fas fa-stop-circle"></i><span>Stop Reports</span></a>
+            <a href="device-management.html" class="menu-item"><i class="fas fa-microchip"></i><span>Device Mgmt</span></a>
+            <a href="users.html" class="menu-item"><i class="fas fa-users"></i><span>Users</span></a>
+            <a href="settings.html" class="menu-item active"><i class="fas fa-cog"></i><span>Settings</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="toggle-btn" onclick="toggleSidebar()">
+                <i class="fas fa-chevron-left" id="toggleIcon"></i>
+                <span>Collapse</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="header-left">
+                <h1><i class="fas fa-cog" style="color: var(--primary); margin-right: 8px;"></i>Settings</h1>
+                <p>Configure system preferences and options</p>
+            </div>
+            <div class="header-right">
+                <div class="notification"><i class="fas fa-bell"></i><span class="badge">2</span></div>
+                <div class="user-avatar">AD</div>
+            </div>
+        </header>
+
+        <!-- SETTINGS CONTAINER -->
+        <div class="settings-container">
+            <!-- SETTINGS NAV -->
+            <div class="settings-nav">
+                <div class="settings-nav-item active" onclick="showSection('company')">
+                    <i class="fas fa-building"></i><span>Company Profile</span>
+                </div>
+                <div class="settings-nav-item" onclick="showSection('notifications')">
+                    <i class="fas fa-bell"></i><span>Notifications</span>
+                </div>
+                <div class="settings-nav-item" onclick="showSection('map')">
+                    <i class="fas fa-map"></i><span>Map Settings</span>
+                </div>
+                <div class="settings-nav-item" onclick="showSection('appearance')">
+                    <i class="fas fa-paint-brush"></i><span>Appearance</span>
+                </div>
+                <div class="settings-nav-item" onclick="showSection('language')">
+                    <i class="fas fa-language"></i><span>Language</span>
+                </div>
+                <div class="settings-nav-item" onclick="showSection('backup')">
+                    <i class="fas fa-database"></i><span>Backup & Restore</span>
+                </div>
+                <div class="settings-nav-item" onclick="showSection('api')">
+                    <i class="fas fa-code"></i><span>API Integration</span>
+                </div>
+                <div class="settings-nav-item" onclick="showSection('security')">
+                    <i class="fas fa-shield-alt"></i><span>Security</span>
+                </div>
+            </div>
+
+            <!-- SETTINGS CONTENT -->
+            <div class="settings-content">
+                <!-- COMPANY PROFILE -->
+                <div class="settings-section active" id="company">
+                    <h2><i class="fas fa-building"></i>Company Profile</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Company Name</label>
+                            <input type="text" value="Sarvam Automation GPS" id="companyName">
+                        </div>
+                        <div class="form-group">
+                            <label>Business Email</label>
+                            <input type="email" value="admin@sarvamgps.com" id="businessEmail">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Phone Number</label>
+                            <input type="tel" value="+91 79 1234 5678" id="companyPhone">
+                        </div>
+                        <div class="form-group">
+                            <label>Website</label>
+                            <input type="url" value="https://sarvamgps.com" id="website">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Address</label>
+                        <textarea id="companyAddress">123, Business Park, Ahmedabad, Gujarat - 380015</textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>GST Number</label>
+                            <input type="text" value="24AABCS1234A1Z5" id="gstNumber">
+                        </div>
+                        <div class="form-group">
+                            <label>PAN Number</label>
+                            <input type="text" value="AABCS1234A" id="panNumber">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Company Logo</label>
+                        <input type="file" accept="image/*" style="padding: 8px;">
+                        <p class="form-hint">Recommended size: 200x200px, PNG or JPG</p>
+                    </div>
+                </div>
+
+                <!-- NOTIFICATIONS -->
+                <div class="settings-section" id="notifications">
+                    <h2><i class="fas fa-bell"></i>Notification Settings</h2>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Email Alerts</h4>
+                            <p>Receive email notifications for critical alerts</p>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>SMS Alerts</h4>
+                            <p>Receive SMS for fuel theft and geofence breaches</p>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Push Notifications</h4>
+                            <p>Browser push notifications for real-time alerts</p>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Daily Summary</h4>
+                            <p>Receive daily email summary of all activities</p>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Maintenance Reminders</h4>
+                            <p>Get notified before vehicle maintenance due date</p>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>Alert Email Recipients</label>
+                        <input type="text" value="admin@sarvamgps.com, manager@sarvamgps.com" placeholder="Comma separated emails">
+                    </div>
+                </div>
+
+                <!-- MAP SETTINGS -->
+                <div class="settings-section" id="map">
+                    <h2><i class="fas fa-map"></i>Map Settings</h2>
+                    <div class="form-group">
+                        <label>Default Map Provider</label>
+                        <select>
+                            <option selected>Google Maps</option>
+                            <option>OpenStreetMap</option>
+                            <option>Mapbox</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Default Map View</label>
+                        <select>
+                            <option selected>Roadmap</option>
+                            <option>Satellite</option>
+                            <option>Hybrid</option>
+                            <option>Terrain</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Default Zoom Level</label>
+                            <input type="number" value="14" min="1" max="20">
+                        </div>
+                        <div class="form-group">
+                            <label>Refresh Interval (seconds)</label>
+                            <input type="number" value="30" min="5" max="300">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Show Traffic Layer</h4>
+                            <p>Display real-time traffic on map</p>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Auto-center on Vehicle</h4>
+                            <p>Automatically center map on selected vehicle</p>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                </div>
+
+                <!-- APPEARANCE -->
+                <div class="settings-section" id="appearance">
+                    <h2><i class="fas fa-paint-brush"></i>Appearance</h2>
+                    <div class="form-group">
+                        <label>Theme Color</label>
+                        <div class="theme-colors">
+                            <div class="color-option color-red active" onclick="setTheme('red', this)"></div>
+                            <div class="color-option color-blue" onclick="setTheme('blue', this)"></div>
+                            <div class="color-option color-green" onclick="setTheme('green', this)"></div>
+                            <div class="color-option color-purple" onclick="setTheme('purple', this)"></div>
+                            <div class="color-option color-orange" onclick="setTheme('orange', this)"></div>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Dark Mode</h4>
+                            <p>Enable dark theme for dashboard</p>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Compact Sidebar</h4>
+                            <p>Start with collapsed sidebar by default</p>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>High Contrast Mode</h4>
+                            <p>Increase contrast for better visibility</p>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+                    </div>
+                </div>
+
+                <!-- LANGUAGE -->
+                <div class="settings-section" id="language">
+                    <h2><i class="fas fa-language"></i>Language & Region</h2>
+                    <div class="form-group">
+                        <label>Select Language</label>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px;">
+                            <div class="lang-option active" onclick="selectLang(this)">
+                                <div class="lang-flag">🇮🇳</div>
+                                <span class="lang-name">English</span>
+                            </div>
+                            <div class="lang-option" onclick="selectLang(this)">
+                                <div class="lang-flag">🇮🇳</div>
+                                <span class="lang-name">Hindi</span>
+                            </div>
+                            <div class="lang-option" onclick="selectLang(this)">
+                                <div class="lang-flag">🇮🇳</div>
+                                <span class="lang-name">Gujarati</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row" style="margin-top: 20px;">
+                        <div class="form-group">
+                            <label>Time Zone</label>
+                            <select>
+                                <option selected>Asia/Kolkata (IST)</option>
+                                <option>Asia/Dubai</option>
+                                <option>Asia/Singapore</option>
+                                <option>UTC</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Date Format</label>
+                            <select>
+                                <option selected>DD-MM-YYYY</option>
+                                <option>MM-DD-YYYY</option>
+                                <option>YYYY-MM-DD</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Time Format</label>
+                        <select>
+                            <option selected>12 Hour (AM/PM)</option>
+                            <option>24 Hour</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Currency</label>
+                        <select>
+                            <option selected>Indian Rupee (₹)</option>
+                            <option>US Dollar ($)</option>
+                            <option>Euro (€)</option>
+                            <option>UAE Dirham (AED)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- BACKUP -->
+                <div class="settings-section" id="backup">
+                    <h2><i class="fas fa-database"></i>Backup & Restore</h2>
+                    <div class="backup-card">
+                        <h4><i class="fas fa-cloud-download-alt" style="color: var(--info); margin-right: 8px;"></i>Manual Backup</h4>
+                        <p>Download a complete backup of your data including vehicles, drivers, routes, and settings.</p>
+                        <button class="btn btn-primary" onclick="backupData()"><i class="fas fa-download"></i> Download Backup</button>
+                    </div>
+                    <div class="backup-card">
+                        <h4><i class="fas fa-clock" style="color: var(--success); margin-right: 8px;"></i>Auto Backup</h4>
+                        <p>Automatically backup data every day at 2:00 AM.</p>
+                        <div class="setting-row" style="padding: 10px 0 0 0; border: none;">
+                            <div class="setting-info">
+                                <h4 style="font-size: 13px;">Enable Auto Backup</h4>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                        </div>
+                    </div>
+                    <div class="backup-card">
+                        <h4><i class="fas fa-cloud-upload-alt" style="color: var(--warning); margin-right: 8px;"></i>Restore Data</h4>
+                        <p>Restore from a previous backup file. This will overwrite current data.</p>
+                        <input type="file" style="margin-top: 10px; padding: 8px; border: 1px solid #e0e0e0; border-radius: 8px; width: 100%;">
+                        <button class="btn btn-outline" style="margin-top: 10px;" onclick="restoreData()"><i class="fas fa-upload"></i> Restore from Backup</button>
+                    </div>
+                    <div class="backup-card" style="border: 1px solid rgba(231,76,60,0.2);">
+                        <h4><i class="fas fa-trash-alt" style="color: var(--danger); margin-right: 8px;"></i>Reset System</h4>
+                        <p>Clear all data and reset to factory defaults. This action cannot be undone.</p>
+                        <button class="btn btn-danger" style="margin-top: 10px;" onclick="resetSystem()"><i class="fas fa-exclamation-triangle"></i> Reset All Data</button>
+                    </div>
+                </div>
+
+                <!-- API -->
+                <div class="settings-section" id="api">
+                    <h2><i class="fas fa-code"></i>API Integration</h2>
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <div class="api-key-box">
+                            <input type="text" value="sk_live_51H7xYZ0KJ2mN8pQrStUvWxYz" readonly id="apiKey">
+                            <button class="btn btn-outline" onclick="copyApiKey()"><i class="fas fa-copy"></i> Copy</button>
+                            <button class="btn btn-primary" onclick="regenerateApiKey()"><i class="fas fa-sync"></i> Regenerate</button>
+                        </div>
+                        <p class="form-hint">Keep this key secure. Do not share it publicly.</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Webhook URL</label>
+                        <input type="url" value="https://sarvamgps.com/api/webhook" placeholder="https://your-domain.com/webhook">
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Enable Webhook</h4>
+                            <p>Send real-time events to your webhook URL</p>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="form-group">
+                        <label>Allowed IPs (comma separated)</label>
+                        <input type="text" value="192.168.1.1, 203.192.12.45" placeholder="Leave blank to allow all">
+                    </div>
+                    <div class="form-group">
+                        <label>Rate Limit (requests/minute)</label>
+                        <input type="number" value="100" min="10" max="1000">
+                    </div>
+                </div>
+
+                <!-- SECURITY -->
+                <div class="settings-section" id="security">
+                    <h2><i class="fas fa-shield-alt"></i>Security</h2>
+                    <div class="form-group">
+                        <label>Current Password</label>
+                        <input type="password" placeholder="Enter current password">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>New Password</label>
+                            <input type="password" placeholder="Min 8 characters">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm Password</label>
+                            <input type="password" placeholder="Repeat new password">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Two-Factor Authentication</h4>
+                            <p>Require OTP for login</p>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Login Notifications</h4>
+                            <p>Email alert on new device login</p>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Session Timeout</h4>
+                            <p>Auto logout after inactivity</p>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="form-group">
+                        <label>Session Timeout Duration (minutes)</label>
+                        <input type="number" value="30" min="5" max="120">
+                    </div>
+                    <div class="form-group">
+                        <label>Login Attempts Before Lockout</label>
+                        <input type="number" value="5" min="3" max="10">
+                    </div>
+                    <button class="btn btn-primary" style="margin-top: 10px;" onclick="changePassword()"><i class="fas fa-key"></i> Change Password</button>
+                </div>
+
+                <!-- SAVE BAR -->
+                <div class="save-bar">
+                    <button class="btn btn-outline" onclick="resetSettings()"><i class="fas fa-undo"></i> Reset Changes</button>
+                    <button class="btn btn-primary" onclick="saveSettings()"><i class="fas fa-save"></i> Save All Settings</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- TOAST -->
+    <div id="toast" style="position: fixed; bottom: 25px; right: 25px; background: #333; color: white; padding: 12px 20px; border-radius: 10px; display: none; align-items: center; gap: 10px; z-index: 2000;">
+        <i class="fas fa-check-circle" style="color: var(--success);"></i>
+        <span id="toastMessage">Operation successful!</span>
+    </div>
+
+    <script>
+        // ========== SIDEBAR ==========
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const icon = document.getElementById('toggleIcon');
+            sidebar.classList.toggle('collapsed');
+            icon.classList.toggle('fa-chevron-left');
+            icon.classList.toggle('fa-chevron-right');
+        }
+
+        // ========== SECTIONS ==========
+        function showSection(sectionId) {
+            document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.settings-nav-item').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById(sectionId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        // ========== THEME ==========
+        function setTheme(color, element) {
+            document.querySelectorAll('.color-option').forEach(c => c.classList.remove('active'));
+            element.classList.add('active');
+            showToast(`Theme color changed to ${color}`);
+        }
+
+        // ========== LANGUAGE ==========
+        function selectLang(element) {
+            document.querySelectorAll('.lang-option').forEach(l => l.classList.remove('active'));
+            element.classList.add('active');
+            showToast('Language changed successfully');
+        }
+
+        // ========== ACTIONS ==========
+        function backupData() {
+            showToast('Backup download started...');
+            setTimeout(() => showToast('Backup downloaded: sarvam_backup_20260702.zip'), 2000);
+        }
+
+        function restoreData() {
+            showToast('Restoring data from backup...');
+        }
+
+        function resetSystem() {
+            if (confirm('WARNING: This will delete ALL data permanently. Are you sure?')) {
+                if (confirm('Are you absolutely sure? This cannot be undone!')) {
+                    showToast('System reset initiated...');
+                }
+            }
+        }
+
+        function copyApiKey() {
+            const key = document.getElementById('apiKey');
+            key.select();
+            document.execCommand('copy');
+            showToast('API key copied to clipboard');
+        }
+
+        function regenerateApiKey() {
+            if (confirm('Regenerating will invalidate the old key. Continue?')) {
+                document.getElementById('apiKey').value = 'sk_live_' + Math.random().toString(36).substring(2, 15);
+                showToast('New API key generated');
+            }
+        }
+
+        function changePassword() {
+            showToast('Password changed successfully');
+        }
+
+        function saveSettings() {
+            showToast('All settings saved successfully!');
+        }
+
+        function resetSettings() {
+            if (confirm('Reset all changes to last saved state?')) {
+                showToast('Settings reset to defaults');
+            }
+        }
+
+        // ========== TOAST ==========
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').textContent = message;
+            toast.style.display = 'flex';
+            setTimeout(() => toast.style.display = 'none', 3000);
+        }
+    </script>
+</body>
+</html>

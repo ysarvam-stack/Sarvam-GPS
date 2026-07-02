@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel Reports | Sarvam Automation GPS</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #e94560; --primary-dark: #c73e54;
+            --sidebar-bg: #1a1a2e; --sidebar-width: 260px; --sidebar-collapsed: 70px;
+            --header-height: 65px;
+            --success: #2ecc71; --warning: #f39c12; --danger: #e74c3c; --info: #3498db;
+            --fuel-green: #27ae60; --fuel-orange: #e67e22; --fuel-red: #c0392b;
+        }
+
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f7fa; color: #1a1a2e; min-height: 100vh; }
+
+        /* Sidebar */
+        .sidebar { position: fixed; left: 0; top: 0; width: var(--sidebar-width); height: 100vh; background: var(--sidebar-bg); z-index: 100; transition: width 0.3s; overflow: hidden; }
+        .sidebar.collapsed { width: var(--sidebar-collapsed); }
+        .sidebar-header { height: var(--header-height); display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-header .logo-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary), #ff6b6b); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .sidebar-header .logo-icon i { color: white; font-size: 18px; }
+        .sidebar-header .logo-text { color: white; font-size: 18px; font-weight: 700; margin-left: 12px; white-space: nowrap; opacity: 1; transition: opacity 0.3s; }
+        .sidebar.collapsed .logo-text { opacity: 0; width: 0; }
+
+        .sidebar-menu { padding: 15px 0; }
+        .menu-item { display: flex; align-items: center; padding: 12px 20px; color: rgba(255,255,255,0.7); text-decoration: none; transition: all 0.3s; cursor: pointer; border-left: 3px solid transparent; }
+        .menu-item:hover, .menu-item.active { color: white; background: rgba(255,255,255,0.05); border-left-color: var(--primary); }
+        .menu-item i { width: 24px; font-size: 16px; text-align: center; flex-shrink: 0; }
+        .menu-item span { margin-left: 12px; white-space: nowrap; opacity: 1; transition: opacity 0.3s; font-size: 14px; }
+        .sidebar.collapsed .menu-item span { opacity: 0; width: 0; }
+        .menu-item.active { background: rgba(233,69,96,0.15); color: var(--primary); }
+
+        .sidebar-footer { position: absolute; bottom: 0; left: 0; right: 0; padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .toggle-btn { width: 100%; background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.3s; }
+        .toggle-btn:hover { background: rgba(255,255,255,0.2); }
+        .toggle-btn span { white-space: nowrap; transition: opacity 0.3s; }
+        .sidebar.collapsed .toggle-btn span { opacity: 0; width: 0; }
+
+        .main-content { margin-left: var(--sidebar-width); transition: margin-left 0.3s; min-height: 100vh; }
+        .sidebar.collapsed ~ .main-content { margin-left: var(--sidebar-collapsed); }
+
+        /* Header */
+        .header { height: var(--header-height); background: white; display: flex; align-items: center; justify-content: space-between; padding: 0 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 50; }
+        .header-left h1 { font-size: 20px; font-weight: 600; }
+        .header-left p { font-size: 12px; color: #888; margin-top: 2px; }
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        
+        .search-box { position: relative; }
+        .search-box input { width: 280px; padding: 9px 15px 9px 38px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 13px; outline: none; transition: border-color 0.3s; }
+        .search-box input:focus { border-color: var(--primary); }
+        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 13px; }
+
+        .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; transition: all 0.3s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-outline { background: white; border: 1px solid #e0e0e0; color: #555; }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+        .notification { position: relative; width: 38px; height: 38px; border-radius: 10px; background: #f5f7fa; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .notification i { font-size: 16px; color: #555; }
+        .notification .badge { position: absolute; top: -2px; right: -2px; width: 18px; height: 18px; background: var(--danger); color: white; font-size: 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+
+        .user-avatar { width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, var(--primary), #ff6b6b); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px; }
+
+        /* Stats Cards */
+        .stats-section { padding: 25px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .stat-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 15px; transition: transform 0.3s, box-shadow 0.3s; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+        .stat-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .stat-icon.green { background: rgba(39,174,96,0.1); color: var(--fuel-green); }
+        .stat-icon.orange { background: rgba(230,126,34,0.1); color: var(--fuel-orange); }
+        .stat-icon.blue { background: rgba(52,152,219,0.1); color: var(--info); }
+        .stat-icon.red { background: rgba(192,57,43,0.1); color: var(--fuel-red); }
+        .stat-info h3 { font-size: 24px; font-weight: 700; }
+        .stat-info p { font-size: 13px; color: #888; margin-top: 2px; }
+
+        /* Filters */
+        .filters-bar { padding: 0 25px 20px; display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap; }
+        .filter-group { display: flex; align-items: center; gap: 10px; }
+        .filter-group label { font-size: 13px; color: #666; font-weight: 500; }
+        .filter-select { padding: 8px 14px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; background: white; cursor: pointer; }
+
+        /* Fuel Gauge Cards */
+        .fuel-gauges { padding: 0 25px 25px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .fuel-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+        .fuel-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .fuel-card-header h4 { font-size: 15px; font-weight: 600; }
+        .fuel-status { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .fuel-status.good { background: rgba(39,174,96,0.12); color: var(--fuel-green); }
+        .fuel-status.medium { background: rgba(230,126,34,0.12); color: var(--fuel-orange); }
+        .fuel-status.low { background: rgba(192,57,43,0.12); color: var(--fuel-red); }
+
+        .gauge-container { position: relative; height: 120px; display: flex; align-items: center; justify-content: center; }
+        .gauge-svg { width: 180px; height: 100px; }
+        .gauge-text { position: absolute; bottom: 10px; text-align: center; }
+        .gauge-text .percent { font-size: 28px; font-weight: 700; }
+        .gauge-text .liters { font-size: 12px; color: #888; }
+
+        .fuel-info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .fuel-info-item { background: #f8f9fa; padding: 10px; border-radius: 8px; text-align: center; }
+        .fuel-info-item .value { font-size: 16px; font-weight: 700; color: var(--primary); }
+        .fuel-info-item .label { font-size: 11px; color: #888; margin-top: 2px; }
+
+        /* Charts Section */
+        .charts-section { padding: 0 25px 25px; display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .chart-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+        .chart-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .chart-card h3 i { color: var(--primary); }
+        .chart-container { position: relative; height: 250px; }
+
+        /* Refuel Logs */
+        .logs-section { padding: 0 25px 25px; }
+        .logs-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+        .logs-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .logs-card h3 i { color: var(--primary); }
+
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: left; font-size: 13px; }
+        th { background: #f8f9fa; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }
+        td { border-bottom: 1px solid #f0f0f0; }
+        tr:hover td { background: #fafafa; }
+        .badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .badge-success { background: rgba(46,204,113,0.12); color: var(--success); }
+        .badge-warning { background: rgba(243,156,18,0.12); color: var(--warning); }
+
+        /* Efficiency Calculator */
+        .calc-section { padding: 0 25px 25px; }
+        .calc-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+        .calc-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .calc-inputs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+        .calc-group label { display: block; font-size: 12px; color: #666; margin-bottom: 6px; font-weight: 500; }
+        .calc-group input { width: 100%; padding: 10px 14px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; }
+        .calc-group input:focus { border-color: var(--primary); }
+        .calc-result { background: linear-gradient(135deg, var(--primary), #ff6b6b); color: white; padding: 20px; border-radius: 12px; text-align: center; }
+        .calc-result .value { font-size: 36px; font-weight: 700; }
+        .calc-result .label { font-size: 14px; opacity: 0.9; margin-top: 5px; }
+
+        /* Responsive */
+        @media (max-width: 1200px) { 
+            .stats-section { grid-template-columns: repeat(2, 1fr); } 
+            .charts-section { grid-template-columns: 1fr; }
+            .calc-inputs { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); width: var(--sidebar-width); }
+            .main-content { margin-left: 0 !important; }
+            .stats-section { grid-template-columns: 1fr; }
+            .fuel-gauges { grid-template-columns: 1fr; }
+            .search-box input { width: 180px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon"><i class="fas fa-satellite-dish"></i></div>
+            <span class="logo-text">Sarvam GPS</span>
+        </div>
+        <nav class="sidebar-menu">
+            <a href="dashboard.html" class="menu-item"><i class="fas fa-th-large"></i><span>Dashboard</span></a>
+            <a href="vehicles.html" class="menu-item"><i class="fas fa-car"></i><span>Vehicles</span></a>
+            <a href="drivers.html" class="menu-item"><i class="fas fa-id-card"></i><span>Drivers</span></a>
+            <a href="live-tracking.html" class="menu-item"><i class="fas fa-map-marked-alt"></i><span>Live Tracking</span></a>
+            <a href="history.html" class="menu-item"><i class="fas fa-route"></i><span>Route History</span></a>
+            <a href="fuel-reports.html" class="menu-item active"><i class="fas fa-gas-pump"></i><span>Fuel Reports</span></a>
+            <a href="fuel-alerts.html" class="menu-item"><i class="fas fa-bell"></i><span>Fuel Alerts</span></a>
+            <a href="geofence.html" class="menu-item"><i class="fas fa-draw-polygon"></i><span>Geofence</span></a>
+            <a href="alerts.html" class="menu-item"><i class="fas fa-exclamation-triangle"></i><span>Alerts</span></a>
+            <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i><span>Settings</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="toggle-btn" onclick="toggleSidebar()">
+                <i class="fas fa-chevron-left" id="toggleIcon"></i>
+                <span>Collapse</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="header-left">
+                <h1><i class="fas fa-gas-pump" style="color: var(--primary); margin-right: 8px;"></i>Fuel Reports & Analytics</h1>
+                <p>Monitor fuel consumption, efficiency and costs</p>
+            </div>
+            <div class="header-right">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search vehicle..." id="searchInput">
+                </div>
+                <button class="btn btn-outline" onclick="exportReport()"><i class="fas fa-download"></i> Export</button>
+                <div class="notification"><i class="fas fa-bell"></i><span class="badge">3</span></div>
+                <div class="user-avatar">AD</div>
+            </div>
+        </header>
+
+        <!-- STATS -->
+        <section class="stats-section">
+            <div class="stat-card">
+                <div class="stat-icon green"><i class="fas fa-gas-pump"></i></div>
+                <div class="stat-info">
+                    <h3>2,450 L</h3>
+                    <p>Total Fuel Today</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon orange"><i class="fas fa-chart-line"></i></div>
+                <div class="stat-info">
+                    <h3>₹ 1,96,000</h3>
+                    <p>Today's Fuel Cost</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue"><i class="fas fa-tachometer-alt"></i></div>
+                <div class="stat-info">
+                    <h3>18.5 KM/L</h3>
+                    <p>Avg Efficiency</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon red"><i class="fas fa-exclamation-circle"></i></div>
+                <div class="stat-info">
+                    <h3>3</h3>
+                    <p>Low Fuel Alerts</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- FILTERS -->
+        <div class="filters-bar">
+            <div class="filter-group">
+                <label>Vehicle:</label>
+                <select class="filter-select" id="vehicleFilter" onchange="updateFuelData()">
+                    <option value="all">All Vehicles</option>
+                    <option value="GJ-01-AB-1234">GJ-01-AB-1234 (Toyota Innova)</option>
+                    <option value="GJ-01-CD-5678">GJ-01-CD-5678 (Honda City)</option>
+                    <option value="GJ-01-EF-9012">GJ-01-EF-9012 (Tata 407)</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Period:</label>
+                <select class="filter-select" id="periodFilter" onchange="updateCharts()">
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="custom">Custom Range</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>From:</label>
+                <input type="date" class="filter-select" style="padding: 7px 14px;">
+            </div>
+            <div class="filter-group">
+                <label>To:</label>
+                <input type="date" class="filter-select" style="padding: 7px 14px;">
+            </div>
+        </div>
+
+        <!-- FUEL GAUGES -->
+        <section class="fuel-gauges" id="fuelGauges">
+            <!-- Generated by JS -->
+        </section>
+
+        <!-- CHARTS -->
+        <section class="charts-section">
+            <div class="chart-card">
+                <h3><i class="fas fa-chart-area"></i> Fuel Consumption Trend</h3>
+                <div class="chart-container">
+                    <canvas id="consumptionChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fas fa-chart-pie"></i> Fuel by Vehicle</h3>
+                <div class="chart-container">
+                    <canvas id="vehiclePieChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- REFUEL LOGS -->
+        <section class="logs-section">
+            <div class="logs-card">
+                <h3><i class="fas fa-list-alt"></i> Refuel Logs</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Vehicle</th>
+                                <th>Amount (L)</th>
+                                <th>Cost (₹)</th>
+                                <th>Odometer</th>
+                                <th>Location</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTable">
+                            <!-- Generated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- EFFICIENCY CALCULATOR -->
+        <section class="calc-section">
+            <div class="calc-card">
+                <h3><i class="fas fa-calculator"></i> Fuel Efficiency Calculator</h3>
+                <div class="calc-inputs">
+                    <div class="calc-group">
+                        <label>Distance Traveled (KM)</label>
+                        <input type="number" id="calcDistance" placeholder="e.g. 450" oninput="calculateEfficiency()">
+                    </div>
+                    <div class="calc-group">
+                        <label>Fuel Used (Liters)</label>
+                        <input type="number" id="calcFuel" placeholder="e.g. 25" oninput="calculateEfficiency()">
+                    </div>
+                    <div class="calc-group">
+                        <label>Fuel Price (₹/L)</label>
+                        <input type="number" id="calcPrice" placeholder="e.g. 80" value="80" oninput="calculateEfficiency()">
+                    </div>
+                </div>
+                <div class="calc-result" id="calcResult" style="display: none;">
+                    <div class="value" id="efficiencyValue">0</div>
+                    <div class="label">KM per Liter</div>
+                    <div style="margin-top: 10px; font-size: 14px; opacity: 0.9;">
+                        Total Cost: ₹<span id="totalCost">0</span> | Cost/KM: ₹<span id="costPerKm">0</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // ========== SIDEBAR ==========
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const icon = document.getElementById('toggleIcon');
+            sidebar.classList.toggle('collapsed');
+            icon.classList.toggle('fa-chevron-left');
+            icon.classList.toggle('fa-chevron-right');
+        }
+
+        // ========== FUEL DATA ==========
+        const fuelData = [
+            { id: 1, vehicle: 'GJ-01-AB-1234', name: 'Toyota Innova', percent: 75, liters: 45, capacity: 60, status: 'good', today: 12, cost: 960, km: 240 },
+            { id: 2, vehicle: 'GJ-01-CD-5678', name: 'Honda City', percent: 35, liters: 18, capacity: 50, status: 'medium', today: 8, cost: 640, km: 160 },
+            { id: 3, vehicle: 'GJ-01-EF-9012', name: 'Tata 407', percent: 15, liters: 9, capacity: 60, status: 'low', today: 25, cost: 2000, km: 125 },
+            { id: 4, vehicle: 'GJ-01-GH-3456', name: 'Maruti Eeco', percent: 90, liters: 36, capacity: 40, status: 'good', today: 5, cost: 400, km: 100 },
+        ];
+
+        const refuelLogs = [
+            { date: '02-07-2026 08:30', vehicle: 'GJ-01-AB-1234', amount: 25, cost: 2000, odometer: 45200, location: 'Ahmedabad Petrol Pump', status: 'verified' },
+            { date: '02-07-2026 10:15', vehicle: 'GJ-01-CD-5678', amount: 15, cost: 1200, odometer: 32150, location: 'Shell Pump, Surat', status: 'verified' },
+            { date: '02-07-2026 12:00', vehicle: 'GJ-01-EF-9012', amount: 40, cost: 3200, odometer: 78500, location: 'Bharat Petroleum', status: 'pending' },
+            { date: '01-07-2026 18:45', vehicle: 'GJ-01-AB-1234', amount: 30, cost: 2400, odometer: 44950, location: 'HP Pump, Vadodara', status: 'verified' },
+            { date: '01-07-2026 09:00', vehicle: 'GJ-01-GH-3456', amount: 20, cost: 1600, odometer: 28500, location: 'Indian Oil, Ahmedabad', status: 'verified' },
+        ];
+
+        // ========== RENDER FUEL GAUGES ==========
+        function renderFuelGauges() {
+            const container = document.getElementById('fuelGauges');
+            container.innerHTML = '';
+
+            fuelData.forEach(data => {
+                const strokeColor = data.status === 'good' ? '#27ae60' : data.status === 'medium' ? '#e67e22' : '#c0392b';
+                const dashArray = `${data.percent * 1.5} 150`;
+                
+                const card = document.createElement('div');
+                card.className = 'fuel-card';
+                card.innerHTML = `
+                    <div class="fuel-card-header">
+                        <h4><i class="fas fa-car" style="color: var(--primary); margin-right: 6px;"></i>${data.vehicle}</h4>
+                        <span class="fuel-status ${data.status}">${data.status.toUpperCase()}</span>
+                    </div>
+                    <div class="gauge-container">
+                        <svg class="gauge-svg" viewBox="0 0 180 100">
+                            <path d="M 20 80 A 70 70 0 0 1 160 80" fill="none" stroke="#eee" stroke-width="12" stroke-linecap="round"/>
+                            <path d="M 20 80 A 70 70 0 0 1 160 80" fill="none" stroke="${strokeColor}" stroke-width="12" stroke-linecap="round" 
+                                stroke-dasharray="${dashArray}" stroke-dashoffset="0" style="transition: stroke-dasharray 1s ease;"/>
+                        </svg>
+                        <div class="gauge-text">
+                            <div class="percent" style="color: ${strokeColor}">${data.percent}%</div>
+                            <div class="liters">${data.liters} / ${data.capacity} L</div>
+                        </div>
+                    </div>
+                    <div class="fuel-info">
+                        <div class="fuel-info-item">
+                            <div class="value">${data.today}L</div>
+                            <div class="label">Today</div>
+                        </div>
+                        <div class="fuel-info-item">
+                            <div class="value">₹${data.cost}</div>
+                            <div class="label">Cost</div>
+                        </div>
+                        <div class="fuel-info-item">
+                            <div class="value">${data.km}KM</div>
+                            <div class="label">Distance</div>
+                        </div>
+                        <div class="fuel-info-item">
+                            <div class="value">${(data.km/data.today).toFixed(1)}</div>
+                            <div class="label">KM/L</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // ========== CHARTS ==========
+        let consumptionChart, vehiclePieChart;
+
+        function initCharts() {
+            // Consumption Line Chart
+            const ctx1 = document.getElementById('consumptionChart').getContext('2d');
+            consumptionChart = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Fuel Consumption (L)',
+                        data: [45, 52, 38, 65, 48, 70, 55],
+                        borderColor: '#e94560',
+                        backgroundColor: 'rgba(233,69,96,0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 5,
+                        pointBackgroundColor: '#e94560'
+                    }, {
+                        label: 'Fuel Cost (₹x10)',
+                        data: [360, 416, 304, 520, 384, 560, 440],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52,152,219,0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 5,
+                        pointBackgroundColor: '#3498db'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top' } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // Vehicle Pie Chart
+            const ctx2 = document.getElementById('vehiclePieChart').getContext('2d');
+            vehiclePieChart = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Innova', 'City', 'Tata 407', 'Eeco'],
+                    datasets: [{
+                        data: [35, 25, 30, 10],
+                        backgroundColor: ['#e94560', '#3498db', '#f39c12', '#27ae60'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    cutout: '60%'
+                }
+            });
+        }
+
+        function updateCharts() {
+            const period = document.getElementById('periodFilter').value;
+            let labels, data1, data2;
+            
+            if (period === 'today') {
+                labels = ['6AM', '9AM', '12PM', '3PM', '6PM', '9PM'];
+                data1 = [5, 12, 18, 25, 32, 45];
+                data2 = [40, 96, 144, 200, 256, 360];
+            } else if (period === 'week') {
+                labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                data1 = [45, 52, 38, 65, 48, 70, 55];
+                data2 = [360, 416, 304, 520, 384, 560, 440];
+            } else {
+                labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+                data1 = [280, 320, 290, 350];
+                data2 = [2240, 2560, 2320, 2800];
+            }
+
+            consumptionChart.data.labels = labels;
+            consumptionChart.data.datasets[0].data = data1;
+            consumptionChart.data.datasets[1].data = data2;
+            consumptionChart.update();
+        }
+
+        // ========== REFUEL LOGS ==========
+        function renderLogs() {
+            const tbody = document.getElementById('logsTable');
+            tbody.innerHTML = '';
+            
+            refuelLogs.forEach(log => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${log.date}</td>
+                    <td><strong>${log.vehicle}</strong></td>
+                    <td>${log.amount} L</td>
+                    <td>₹${log.cost.toLocaleString()}</td>
+                    <td>${log.odometer.toLocaleString()} km</td>
+                    <td><i class="fas fa-map-marker-alt" style="color: var(--primary); margin-right: 4px;"></i>${log.location}</td>
+                    <td><span class="badge ${log.status === 'verified' ? 'badge-success' : 'badge-warning'}">${log.status}</span></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // ========== EFFICIENCY CALCULATOR ==========
+        function calculateEfficiency() {
+            const distance = parseFloat(document.getElementById('calcDistance').value) || 0;
+            const fuel = parseFloat(document.getElementById('calcFuel').value) || 0;
+            const price = parseFloat(document.getElementById('calcPrice').value) || 0;
+
+            if (distance > 0 && fuel > 0) {
+                const efficiency = (distance / fuel).toFixed(2);
+                const totalCost = (fuel * price).toFixed(0);
+                const costPerKm = (totalCost / distance).toFixed(2);
+
+                document.getElementById('efficiencyValue').textContent = efficiency;
+                document.getElementById('totalCost').textContent = totalCost;
+                document.getElementById('costPerKm').textContent = costPerKm;
+                document.getElementById('calcResult').style.display = 'block';
+            }
+        }
+
+        // ========== EXPORT ==========
+        function exportReport() {
+            alert('📊 Fuel Report exported!\n\nFormat: Excel (.xlsx)\nPeriod: ' + document.getElementById('periodFilter').value);
+        }
+
+        function updateFuelData() {
+            // Filter logic here
+            renderFuelGauges();
+        }
+
+        // ========== INIT ==========
+        renderFuelGauges();
+        initCharts();
+        renderLogs();
+    </script>
+</body>
+</html>

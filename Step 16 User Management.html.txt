@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management | Sarvam Automation GPS</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #e94560; --primary-dark: #c73e54;
+            --sidebar-bg: #1a1a2e; --sidebar-width: 260px; --sidebar-collapsed: 70px;
+            --header-height: 65px;
+            --success: #2ecc71; --warning: #f39c12; --danger: #e74c3c; --info: #3498db;
+        }
+
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f7fa; color: #1a1a2e; min-height: 100vh; }
+
+        /* Sidebar */
+        .sidebar { position: fixed; left: 0; top: 0; width: var(--sidebar-width); height: 100vh; background: var(--sidebar-bg); z-index: 100; transition: width 0.3s; overflow: hidden; }
+        .sidebar.collapsed { width: var(--sidebar-collapsed); }
+        .sidebar-header { height: var(--header-height); display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-header .logo-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary), #ff6b6b); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .sidebar-header .logo-icon i { color: white; font-size: 18px; }
+        .sidebar-header .logo-text { color: white; font-size: 18px; font-weight: 700; margin-left: 12px; white-space: nowrap; opacity: 1; transition: opacity 0.3s; }
+        .sidebar.collapsed .logo-text { opacity: 0; width: 0; }
+
+        .sidebar-menu { padding: 15px 0; }
+        .menu-item { display: flex; align-items: center; padding: 12px 20px; color: rgba(255,255,255,0.7); text-decoration: none; transition: all 0.3s; cursor: pointer; border-left: 3px solid transparent; }
+        .menu-item:hover, .menu-item.active { color: white; background: rgba(255,255,255,0.05); border-left-color: var(--primary); }
+        .menu-item i { width: 24px; font-size: 16px; text-align: center; flex-shrink: 0; }
+        .menu-item span { margin-left: 12px; white-space: nowrap; opacity: 1; transition: opacity 0.3s; font-size: 14px; }
+        .sidebar.collapsed .menu-item span { opacity: 0; width: 0; }
+        .menu-item.active { background: rgba(233,69,96,0.15); color: var(--primary); }
+
+        .sidebar-footer { position: absolute; bottom: 0; left: 0; right: 0; padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .toggle-btn { width: 100%; background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.3s; }
+        .toggle-btn:hover { background: rgba(255,255,255,0.2); }
+        .toggle-btn span { white-space: nowrap; transition: opacity 0.3s; }
+        .sidebar.collapsed .toggle-btn span { opacity: 0; width: 0; }
+
+        .main-content { margin-left: var(--sidebar-width); transition: margin-left 0.3s; min-height: 100vh; }
+        .sidebar.collapsed ~ .main-content { margin-left: var(--sidebar-collapsed); }
+
+        /* Header */
+        .header { height: var(--header-height); background: white; display: flex; align-items: center; justify-content: space-between; padding: 0 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 50; }
+        .header-left h1 { font-size: 20px; font-weight: 600; }
+        .header-left p { font-size: 12px; color: #888; margin-top: 2px; }
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        
+        .search-box { position: relative; }
+        .search-box input { width: 280px; padding: 9px 15px 9px 38px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 13px; outline: none; transition: border-color 0.3s; }
+        .search-box input:focus { border-color: var(--primary); }
+        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 13px; }
+
+        .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; transition: all 0.3s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-outline { background: white; border: 1px solid #e0e0e0; color: #555; }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+
+        .notification { position: relative; width: 38px; height: 38px; border-radius: 10px; background: #f5f7fa; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .notification i { font-size: 16px; color: #555; }
+        .notification .badge { position: absolute; top: -2px; right: -2px; width: 18px; height: 18px; background: var(--danger); color: white; font-size: 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+
+        .user-avatar { width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, var(--primary), #ff6b6b); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px; }
+
+        /* Stats */
+        .stats-section { padding: 25px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .stat-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 15px; transition: transform 0.3s, box-shadow 0.3s; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+        .stat-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .stat-icon.blue { background: rgba(52,152,219,0.1); color: var(--info); }
+        .stat-icon.green { background: rgba(46,204,113,0.1); color: var(--success); }
+        .stat-icon.orange { background: rgba(243,156,18,0.1); color: var(--warning); }
+        .stat-icon.red { background: rgba(231,76,60,0.1); color: var(--danger); }
+        .stat-info h3 { font-size: 24px; font-weight: 700; }
+        .stat-info p { font-size: 13px; color: #888; margin-top: 2px; }
+
+        /* Filters */
+        .filters-bar { padding: 0 25px 20px; display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap; }
+        .filter-group { display: flex; align-items: center; gap: 10px; }
+        .filter-group label { font-size: 13px; color: #666; font-weight: 500; }
+        .filter-select { padding: 8px 14px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; background: white; cursor: pointer; }
+
+        /* Users Table */
+        .users-section { padding: 0 25px 25px; }
+        .users-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+        .users-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .users-card h3 i { color: var(--primary); }
+
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: left; font-size: 13px; }
+        th { background: #f8f9fa; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }
+        td { border-bottom: 1px solid #f0f0f0; }
+        tr:hover td { background: #fafafa; }
+
+        .user-info { display: flex; align-items: center; gap: 12px; }
+        .user-avatar-sm { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), #ff6b6b); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px; }
+        .user-details h4 { font-size: 14px; font-weight: 600; }
+        .user-details p { font-size: 12px; color: #888; }
+
+        .role-badge { padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .role-admin { background: rgba(233,69,96,0.12); color: var(--primary); }
+        .role-manager { background: rgba(52,152,219,0.12); color: var(--info); }
+        .role-operator { background: rgba(46,204,113,0.12); color: var(--success); }
+        .role-viewer { background: rgba(149,165,166,0.12); color: #666; }
+
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .status-dot.active { background: var(--success); }
+        .status-dot.inactive { background: var(--danger); }
+
+        .action-btns { display: flex; gap: 5px; }
+        .action-btn { width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.3s; }
+        .action-btn.edit { background: rgba(52,152,219,0.1); color: var(--info); }
+        .action-btn.edit:hover { background: var(--info); color: white; }
+        .action-btn.delete { background: rgba(231,76,60,0.1); color: var(--danger); }
+        .action-btn.delete:hover { background: var(--danger); color: white; }
+        .action-btn.view { background: rgba(149,165,166,0.1); color: #666; }
+        .action-btn.view:hover { background: #666; color: white; }
+
+        /* Pagination */
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 20px; }
+        .page-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e0e0e0; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.3s; }
+        .page-btn:hover, .page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 20px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; animation: modalIn 0.3s ease; }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        .modal-header { padding: 20px 25px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { font-size: 18px; }
+        .modal-close { width: 32px; height: 32px; border-radius: 8px; border: none; background: #f5f5f5; cursor: pointer; font-size: 16px; color: #666; }
+        .modal-close:hover { background: #eee; }
+        .modal-body { padding: 25px; }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #555; }
+        .form-group input, .form-group select { width: 100%; padding: 10px 14px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; }
+        .form-group input:focus, .form-group select:focus { border-color: var(--primary); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        /* Permissions */
+        .permissions-section { padding: 0 25px 25px; }
+        .permissions-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+        .permissions-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+        .permissions-card h3 i { color: var(--primary); }
+
+        .perm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .perm-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8f9fa; border-radius: 8px; }
+        .perm-item span { font-size: 13px; font-weight: 500; }
+        .perm-item i { color: var(--primary); margin-right: 8px; }
+
+        /* Toggle Switch */
+        .toggle-switch { position: relative; width: 50px; height: 26px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 26px; transition: 0.3s; }
+        .toggle-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+        .toggle-switch input:checked + .toggle-slider { background: var(--primary); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(24px); }
+
+        /* Responsive */
+        @media (max-width: 1200px) { 
+            .stats-section { grid-template-columns: repeat(2, 1fr); } 
+            .perm-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); width: var(--sidebar-width); }
+            .main-content { margin-left: 0 !important; }
+            .stats-section { grid-template-columns: 1fr; }
+            .perm-grid { grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .search-box input { width: 180px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon"><i class="fas fa-satellite-dish"></i></div>
+            <span class="logo-text">Sarvam GPS</span>
+        </div>
+        <nav class="sidebar-menu">
+            <a href="dashboard.html" class="menu-item"><i class="fas fa-th-large"></i><span>Dashboard</span></a>
+            <a href="vehicles.html" class="menu-item"><i class="fas fa-car"></i><span>Vehicles</span></a>
+            <a href="drivers.html" class="menu-item"><i class="fas fa-id-card"></i><span>Drivers</span></a>
+            <a href="live-tracking.html" class="menu-item"><i class="fas fa-map-marked-alt"></i><span>Live Tracking</span></a>
+            <a href="history.html" class="menu-item"><i class="fas fa-route"></i><span>Route History</span></a>
+            <a href="fuel-reports.html" class="menu-item"><i class="fas fa-gas-pump"></i><span>Fuel Reports</span></a>
+            <a href="fuel-alerts.html" class="menu-item"><i class="fas fa-bell"></i><span>Fuel Alerts</span></a>
+            <a href="stop-reports.html" class="menu-item"><i class="fas fa-stop-circle"></i><span>Stop Reports</span></a>
+            <a href="device-management.html" class="menu-item"><i class="fas fa-microchip"></i><span>Device Mgmt</span></a>
+            <a href="users.html" class="menu-item active"><i class="fas fa-users"></i><span>Users</span></a>
+            <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i><span>Settings</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="toggle-btn" onclick="toggleSidebar()">
+                <i class="fas fa-chevron-left" id="toggleIcon"></i>
+                <span>Collapse</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="header-left">
+                <h1><i class="fas fa-users" style="color: var(--primary); margin-right: 8px;"></i>User Management</h1>
+                <p>Manage system users and permissions</p>
+            </div>
+            <div class="header-right">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search users..." id="searchInput">
+                </div>
+                <button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> Add User</button>
+                <div class="notification"><i class="fas fa-bell"></i><span class="badge">2</span></div>
+                <div class="user-avatar">AD</div>
+            </div>
+        </header>
+
+        <!-- STATS -->
+        <section class="stats-section">
+            <div class="stat-card">
+                <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+                <div class="stat-info">
+                    <h3>24</h3>
+                    <p>Total Users</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green"><i class="fas fa-user-check"></i></div>
+                <div class="stat-info">
+                    <h3>20</h3>
+                    <p>Active Users</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon orange"><i class="fas fa-user-clock"></i></div>
+                <div class="stat-info">
+                    <h3>3</h3>
+                    <p>Pending Approval</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon red"><i class="fas fa-user-slash"></i></div>
+                <div class="stat-info">
+                    <h3>1</h3>
+                    <p>Blocked Users</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- FILTERS -->
+        <div class="filters-bar">
+            <div class="filter-group">
+                <label>Role:</label>
+                <select class="filter-select" id="roleFilter" onchange="filterUsers()">
+                    <option value="all">All Roles</option>
+                    <option value="admin">Admin</option>
+                    <option value="manager">Manager</option>
+                    <option value="operator">Operator</option>
+                    <option value="viewer">Viewer</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Status:</label>
+                <select class="filter-select" id="statusFilter" onchange="filterUsers()">
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="pending">Pending</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- USERS TABLE -->
+        <section class="users-section">
+            <div class="users-card">
+                <h3><i class="fas fa-list"></i> All Users</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Last Login</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTable">
+                            <!-- Generated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="pagination"></div>
+            </div>
+        </section>
+
+        <!-- PERMISSIONS -->
+        <section class="permissions-section">
+            <div class="permissions-card">
+                <h3><i class="fas fa-shield-alt"></i> Role Permissions</h3>
+                <div class="perm-grid">
+                    <div class="perm-item">
+                        <span><i class="fas fa-th-large"></i> Dashboard</span>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="perm-item">
+                        <span><i class="fas fa-car"></i> Vehicles</span>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="perm-item">
+                        <span><i class="fas fa-id-card"></i> Drivers</span>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="perm-item">
+                        <span><i class="fas fa-map-marked-alt"></i> Tracking</span>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="perm-item">
+                        <span><i class="fas fa-gas-pump"></i> Fuel</span>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="perm-item">
+                        <span><i class="fas fa-bell"></i> Alerts</span>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="perm-item">
+                        <span><i class="fas fa-chart-bar"></i> Reports</span>
+                        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="perm-item">
+                        <span><i class="fas fa-cog"></i> Settings</span>
+                        <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="perm-item">
+                        <span><i class="fas fa-users"></i> User Mgmt</span>
+                        <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+                    </div>
+                </div>
+                <div style="margin-top: 20px; text-align: right;">
+                    <button class="btn btn-primary" onclick="savePermissions()"><i class="fas fa-save"></i> Save Permissions</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ADD/EDIT USER MODAL -->
+    <div class="modal-overlay" id="userModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle"><i class="fas fa-user-plus" style="color: var(--primary); margin-right: 8px;"></i>Add New User</h2>
+                <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="userForm" onsubmit="saveUser(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>First Name</label>
+                            <input type="text" id="firstName" required placeholder="Enter first name">
+                        </div>
+                        <div class="form-group">
+                            <label>Last Name</label>
+                            <input type="text" id="lastName" required placeholder="Enter last name">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="email" required placeholder="user@email.com">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="tel" id="phone" placeholder="+91 98765 43210">
+                        </div>
+                        <div class="form-group">
+                            <label>Role</label>
+                            <select id="role" required>
+                                <option value="">Select Role</option>
+                                <option value="admin">Admin</option>
+                                <option value="manager">Manager</option>
+                                <option value="operator">Operator</option>
+                                <option value="viewer">Viewer</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="password" placeholder="Min 8 characters" required>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button type="submit" class="btn btn-primary" style="flex: 1;"><i class="fas fa-save"></i> Save User</button>
+                        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" style="position: fixed; bottom: 25px; right: 25px; background: #333; color: white; padding: 12px 20px; border-radius: 10px; display: none; align-items: center; gap: 10px; z-index: 2000;">
+        <i class="fas fa-check-circle" style="color: var(--success);"></i>
+        <span id="toastMessage">Operation successful!</span>
+    </div>
+
+    <script>
+        // ========== SIDEBAR ==========
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const icon = document.getElementById('toggleIcon');
+            sidebar.classList.toggle('collapsed');
+            icon.classList.toggle('fa-chevron-left');
+            icon.classList.toggle('fa-chevron-right');
+        }
+
+        // ========== USERS DATA ==========
+        let users = [
+            { id: 1, name: 'Amit Desai', email: 'amit@admin.com', phone: '+91 98765 43210', role: 'admin', status: 'active', lastLogin: '2 min ago', created: '15 Jan 2023' },
+            { id: 2, name: 'Rajesh Patel', email: 'rajesh@manager.com', phone: '+91 98765 43211', role: 'manager', status: 'active', lastLogin: '15 min ago', created: '20 Feb 2023' },
+            { id: 3, name: 'Mahesh Sharma', email: 'mahesh@operator.com', phone: '+91 98765 43212', role: 'operator', status: 'active', lastLogin: '1 hour ago', created: '10 Mar 2023' },
+            { id: 4, name: 'Suresh Kumar', email: 'suresh@viewer.com', phone: '+91 98765 43213', role: 'viewer', status: 'active', lastLogin: '3 hours ago', created: '05 Apr 2023' },
+            { id: 5, name: 'Kiran Joshi', email: 'kiran@operator.com', phone: '+91 98765 43214', role: 'operator', status: 'pending', lastLogin: 'Never', created: '01 Jul 2026' },
+            { id: 6, name: 'Vikram Singh', email: 'vikram@manager.com', phone: '+91 98765 43215', role: 'manager', status: 'active', lastLogin: '45 min ago', created: '12 May 2023' },
+            { id: 7, name: 'Harish Mehta', email: 'harish@viewer.com', phone: '+91 98765 43216', role: 'viewer', status: 'inactive', lastLogin: '2 days ago', created: '18 Jun 2023' },
+            { id: 8, name: 'Nitin Shah', email: 'nitin@admin.com', phone: '+91 98765 43217', role: 'admin', status: 'active', lastLogin: '5 min ago', created: '22 Jan 2023' },
+        ];
+
+        let currentPage = 1;
+        const itemsPerPage = 5;
+        let editingId = null;
+
+        // ========== RENDER USERS ==========
+        function renderUsers(data = users, page = 1) {
+            const tbody = document.getElementById('usersTable');
+            tbody.innerHTML = '';
+
+            const start = (page - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const paginated = data.slice(start, end);
+
+            paginated.forEach(user => {
+                const initials = user.name.split(' ').map(n => n[0]).join('');
+                const roleClass = `role-${user.role}`;
+                const roleText = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+                const statusDot = user.status === 'active' ? 'active' : user.status === 'pending' ? 'inactive' : 'inactive';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <div class="user-info">
+                            <div class="user-avatar-sm">${initials}</div>
+                            <div class="user-details">
+                                <h4>${user.name}</h4>
+                                <p>${user.phone}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${user.email}</td>
+                    <td><span class="role-badge ${roleClass}">${roleText}</span></td>
+                    <td><span class="status-dot ${statusDot}"></span>${user.status.charAt(0).toUpperCase() + user.status.slice(1)}</td>
+                    <td>${user.lastLogin}</td>
+                    <td>${user.created}</td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="action-btn view" onclick="viewUser(${user.id})"><i class="fas fa-eye"></i></button>
+                            <button class="action-btn edit" onclick="editUser(${user.id})"><i class="fas fa-edit"></i></button>
+                            <button class="action-btn delete" onclick="deleteUser(${user.id})"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            renderPagination(data.length, page);
+        }
+
+        // ========== PAGINATION ==========
+        function renderPagination(totalItems, currentPage) {
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            if (totalPages <= 1) return;
+
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'page-btn';
+            prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => renderUsers(getFilteredUsers(), currentPage - 1);
+            pagination.appendChild(prevBtn);
+
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
+                btn.textContent = i;
+                btn.onclick = () => renderUsers(getFilteredUsers(), i);
+                pagination.appendChild(btn);
+            }
+
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'page-btn';
+            nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => renderUsers(getFilteredUsers(), currentPage + 1);
+            pagination.appendChild(nextBtn);
+        }
+
+        // ========== FILTERS ==========
+        function getFilteredUsers() {
+            const role = document.getElementById('roleFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
+
+            return users.filter(u => {
+                const matchRole = role === 'all' || u.role === role;
+                const matchStatus = status === 'all' || u.status === status;
+                const matchSearch = u.name.toLowerCase().includes(search) || u.email.toLowerCase().includes(search);
+                return matchRole && matchStatus && matchSearch;
+            });
+        }
+
+        function filterUsers() {
+            currentPage = 1;
+            renderUsers(getFilteredUsers(), 1);
+        }
+
+        document.getElementById('searchInput').addEventListener('input', () => {
+            currentPage = 1;
+            renderUsers(getFilteredUsers(), 1);
+        });
+
+        // ========== MODAL ==========
+        function openAddModal() {
+            editingId = null;
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-user-plus" style="color: var(--primary); margin-right: 8px;"></i>Add New User';
+            document.getElementById('userForm').reset();
+            document.getElementById('userModal').classList.add('active');
+        }
+
+        function editUser(id) {
+            const user = users.find(u => u.id === id);
+            if (!user) return;
+            editingId = id;
+
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit" style="color: var(--primary); margin-right: 8px;"></i>Edit User';
+            const names = user.name.split(' ');
+            document.getElementById('firstName').value = names[0];
+            document.getElementById('lastName').value = names.slice(1).join(' ');
+            document.getElementById('email').value = user.email;
+            document.getElementById('phone').value = user.phone;
+            document.getElementById('role').value = user.role;
+            document.getElementById('password').placeholder = 'Leave blank to keep current';
+            document.getElementById('password').required = false;
+
+            document.getElementById('userModal').classList.add('active');
+        }
+
+        function saveUser(event) {
+            event.preventDefault();
+            const firstName = document.getElementById('firstName').value;
+            const lastName = document.getElementById('lastName').value;
+            const name = `${firstName} ${lastName}`;
+
+            if (editingId) {
+                const index = users.findIndex(u => u.id === editingId);
+                if (index !== -1) {
+                    users[index] = { ...users[index], name, email: document.getElementById('email').value, phone: document.getElementById('phone').value, role: document.getElementById('role').value };
+                }
+                showToast('User updated successfully!');
+            } else {
+                users.push({
+                    id: Date.now(),
+                    name,
+                    email: document.getElementById('email').value,
+                    phone: document.getElementById('phone').value,
+                    role: document.getElementById('role').value,
+                    status: 'active',
+                    lastLogin: 'Never',
+                    created: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                });
+                showToast('New user added successfully!');
+            }
+
+            editingId = null;
+            closeModal();
+            filterUsers();
+        }
+
+        function closeModal() {
+            document.getElementById('userModal').classList.remove('active');
+            document.getElementById('password').required = true;
+        }
+
+        // ========== ACTIONS ==========
+        function viewUser(id) {
+            const user = users.find(u => u.id === id);
+            showToast(`Viewing: ${user.name} (${user.role})`);
+        }
+
+        function deleteUser(id) {
+            if (!confirm('Are you sure you want to delete this user?')) return;
+            users = users.filter(u => u.id !== id);
+            filterUsers();
+            showToast('User deleted successfully!');
+        }
+
+        function savePermissions() {
+            showToast('Permissions saved successfully!');
+        }
+
+        // ========== TOAST ==========
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').textContent = message;
+            toast.style.display = 'flex';
+            setTimeout(() => toast.style.display = 'none', 3000);
+        }
+
+        // Close modal on overlay click
+        document.querySelector('.modal-overlay').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeModal();
+        });
+
+        // ========== INIT ==========
+        renderUsers();
+    </script>
+</body>
+</html>

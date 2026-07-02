@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel Alerts | Sarvam Automation GPS</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #e94560; --primary-dark: #c73e54;
+            --sidebar-bg: #1a1a2e; --sidebar-width: 260px; --sidebar-collapsed: 70px;
+            --header-height: 65px;
+            --success: #2ecc71; --warning: #f39c12; --danger: #e74c3c; --info: #3498db;
+        }
+
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f7fa; color: #1a1a2e; min-height: 100vh; }
+
+        /* Sidebar */
+        .sidebar { position: fixed; left: 0; top: 0; width: var(--sidebar-width); height: 100vh; background: var(--sidebar-bg); z-index: 100; transition: width 0.3s; overflow: hidden; }
+        .sidebar.collapsed { width: var(--sidebar-collapsed); }
+        .sidebar-header { height: var(--header-height); display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-header .logo-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary), #ff6b6b); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .sidebar-header .logo-icon i { color: white; font-size: 18px; }
+        .sidebar-header .logo-text { color: white; font-size: 18px; font-weight: 700; margin-left: 12px; white-space: nowrap; opacity: 1; transition: opacity 0.3s; }
+        .sidebar.collapsed .logo-text { opacity: 0; width: 0; }
+
+        .sidebar-menu { padding: 15px 0; }
+        .menu-item { display: flex; align-items: center; padding: 12px 20px; color: rgba(255,255,255,0.7); text-decoration: none; transition: all 0.3s; cursor: pointer; border-left: 3px solid transparent; }
+        .menu-item:hover, .menu-item.active { color: white; background: rgba(255,255,255,0.05); border-left-color: var(--primary); }
+        .menu-item i { width: 24px; font-size: 16px; text-align: center; flex-shrink: 0; }
+        .menu-item span { margin-left: 12px; white-space: nowrap; opacity: 1; transition: opacity 0.3s; font-size: 14px; }
+        .sidebar.collapsed .menu-item span { opacity: 0; width: 0; }
+        .menu-item.active { background: rgba(233,69,96,0.15); color: var(--primary); }
+
+        .sidebar-footer { position: absolute; bottom: 0; left: 0; right: 0; padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .toggle-btn { width: 100%; background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.3s; }
+        .toggle-btn:hover { background: rgba(255,255,255,0.2); }
+        .toggle-btn span { white-space: nowrap; transition: opacity 0.3s; }
+        .sidebar.collapsed .toggle-btn span { opacity: 0; width: 0; }
+
+        .main-content { margin-left: var(--sidebar-width); transition: margin-left 0.3s; min-height: 100vh; }
+        .sidebar.collapsed ~ .main-content { margin-left: var(--sidebar-collapsed); }
+
+        /* Header */
+        .header { height: var(--header-height); background: white; display: flex; align-items: center; justify-content: space-between; padding: 0 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 50; }
+        .header-left h1 { font-size: 20px; font-weight: 600; }
+        .header-left p { font-size: 12px; color: #888; margin-top: 2px; }
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        
+        .search-box { position: relative; }
+        .search-box input { width: 280px; padding: 9px 15px 9px 38px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 13px; outline: none; transition: border-color 0.3s; }
+        .search-box input:focus { border-color: var(--primary); }
+        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 13px; }
+
+        .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; transition: all 0.3s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-outline { background: white; border: 1px solid #e0e0e0; color: #555; }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+
+        .notification { position: relative; width: 38px; height: 38px; border-radius: 10px; background: #f5f7fa; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .notification i { font-size: 16px; color: #555; }
+        .notification .badge { position: absolute; top: -2px; right: -2px; width: 18px; height: 18px; background: var(--danger); color: white; font-size: 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+
+        .user-avatar { width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, var(--primary), #ff6b6b); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px; }
+
+        /* Stats Cards */
+        .stats-section { padding: 25px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .stat-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 15px; transition: transform 0.3s, box-shadow 0.3s; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+        .stat-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .stat-icon.red { background: rgba(231,76,60,0.1); color: var(--danger); }
+        .stat-icon.orange { background: rgba(243,156,18,0.1); color: var(--warning); }
+        .stat-icon.blue { background: rgba(52,152,219,0.1); color: var(--info); }
+        .stat-icon.green { background: rgba(46,204,113,0.1); color: var(--success); }
+        .stat-info h3 { font-size: 24px; font-weight: 700; }
+        .stat-info p { font-size: 13px; color: #888; margin-top: 2px; }
+
+        /* Filters */
+        .filters-bar { padding: 0 25px 20px; display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap; }
+        .filter-group { display: flex; align-items: center; gap: 10px; }
+        .filter-group label { font-size: 13px; color: #666; font-weight: 500; }
+        .filter-select { padding: 8px 14px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; background: white; cursor: pointer; }
+
+        /* Alert Cards */
+        .alerts-section { padding: 0 25px 25px; }
+        .alert-card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); display: flex; align-items: flex-start; gap: 15px; transition: all 0.3s; border-left: 4px solid transparent; }
+        .alert-card:hover { transform: translateX(5px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+        .alert-card.theft { border-left-color: var(--danger); }
+        .alert-card.low { border-left-color: var(--warning); }
+        .alert-card.sudden { border-left-color: var(--info); }
+        .alert-card.leak { border-left-color: #9b59b6; }
+
+        .alert-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .alert-icon.theft { background: rgba(231,76,60,0.1); color: var(--danger); }
+        .alert-icon.low { background: rgba(243,156,18,0.1); color: var(--warning); }
+        .alert-icon.sudden { background: rgba(52,152,219,0.1); color: var(--info); }
+        .alert-icon.leak { background: rgba(155,89,182,0.1); color: #9b59b6; }
+
+        .alert-content { flex: 1; }
+        .alert-content h4 { font-size: 15px; font-weight: 600; margin-bottom: 5px; }
+        .alert-content p { font-size: 13px; color: #666; margin-bottom: 8px; line-height: 1.5; }
+        .alert-meta { display: flex; gap: 15px; font-size: 12px; color: #888; }
+        .alert-meta span { display: flex; align-items: center; gap: 4px; }
+        .alert-meta i { font-size: 11px; }
+
+        .alert-actions { display: flex; gap: 8px; }
+        .alert-actions .btn { padding: 6px 12px; font-size: 12px; }
+
+        .badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .badge-danger { background: rgba(231,76,60,0.12); color: var(--danger); }
+        .badge-warning { background: rgba(243,156,18,0.12); color: var(--warning); }
+        .badge-info { background: rgba(52,152,219,0.12); color: var(--info); }
+        .badge-purple { background: rgba(155,89,182,0.12); color: #9b59b6; }
+
+        /* Alert Settings */
+        .settings-section { padding: 0 25px 25px; }
+        .settings-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+        .settings-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+        .settings-card h3 i { color: var(--primary); }
+
+        .setting-row { display: flex; align-items: center; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #f0f0f0; }
+        .setting-row:last-child { border-bottom: none; }
+        .setting-info h4 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+        .setting-info p { font-size: 12px; color: #888; }
+
+        /* Toggle Switch */
+        .toggle-switch { position: relative; width: 50px; height: 26px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 26px; transition: 0.3s; }
+        .toggle-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+        .toggle-switch input:checked + .toggle-slider { background: var(--primary); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(24px); }
+
+        .threshold-input { width: 80px; padding: 6px 10px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px; text-align: center; margin-left: 10px; }
+
+        /* Responsive */
+        @media (max-width: 1200px) { .stats-section { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); width: var(--sidebar-width); }
+            .main-content { margin-left: 0 !important; }
+            .stats-section { grid-template-columns: 1fr; }
+            .alert-card { flex-direction: column; }
+            .search-box input { width: 180px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon"><i class="fas fa-satellite-dish"></i></div>
+            <span class="logo-text">Sarvam GPS</span>
+        </div>
+        <nav class="sidebar-menu">
+            <a href="dashboard.html" class="menu-item"><i class="fas fa-th-large"></i><span>Dashboard</span></a>
+            <a href="vehicles.html" class="menu-item"><i class="fas fa-car"></i><span>Vehicles</span></a>
+            <a href="drivers.html" class="menu-item"><i class="fas fa-id-card"></i><span>Drivers</span></a>
+            <a href="live-tracking.html" class="menu-item"><i class="fas fa-map-marked-alt"></i><span>Live Tracking</span></a>
+            <a href="history.html" class="menu-item"><i class="fas fa-route"></i><span>Route History</span></a>
+            <a href="fuel-reports.html" class="menu-item"><i class="fas fa-gas-pump"></i><span>Fuel Reports</span></a>
+            <a href="fuel-alerts.html" class="menu-item active"><i class="fas fa-bell"></i><span>Fuel Alerts</span></a>
+            <a href="geofence.html" class="menu-item"><i class="fas fa-draw-polygon"></i><span>Geofence</span></a>
+            <a href="alerts.html" class="menu-item"><i class="fas fa-exclamation-triangle"></i><span>Alerts</span></a>
+            <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i><span>Settings</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="toggle-btn" onclick="toggleSidebar()">
+                <i class="fas fa-chevron-left" id="toggleIcon"></i>
+                <span>Collapse</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="header-left">
+                <h1><i class="fas fa-bell" style="color: var(--primary); margin-right: 8px;"></i>Fuel Alerts</h1>
+                <p>Monitor fuel theft, low fuel & sudden drops</p>
+            </div>
+            <div class="header-right">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search alerts..." id="searchInput">
+                </div>
+                <button class="btn btn-primary" onclick="markAllRead()"><i class="fas fa-check-double"></i> Mark All Read</button>
+                <div class="notification"><i class="fas fa-bell"></i><span class="badge">5</span></div>
+                <div class="user-avatar">AD</div>
+            </div>
+        </header>
+
+        <!-- STATS -->
+        <section class="stats-section">
+            <div class="stat-card">
+                <div class="stat-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+                <div class="stat-info">
+                    <h3>3</h3>
+                    <p>Theft Alerts</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon orange"><i class="fas fa-gas-pump"></i></div>
+                <div class="stat-info">
+                    <h3>8</h3>
+                    <p>Low Fuel Alerts</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue"><i class="fas fa-chart-line"></i></div>
+                <div class="stat-info">
+                    <h3>5</h3>
+                    <p>Sudden Drops</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+                <div class="stat-info">
+                    <h3>12</h3>
+                    <p>Resolved Today</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- FILTERS -->
+        <div class="filters-bar">
+            <div class="filter-group">
+                <label>Alert Type:</label>
+                <select class="filter-select" id="typeFilter" onchange="filterAlerts()">
+                    <option value="all">All Types</option>
+                    <option value="theft">Fuel Theft</option>
+                    <option value="low">Low Fuel</option>
+                    <option value="sudden">Sudden Drop</option>
+                    <option value="leak">Fuel Leak</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Status:</label>
+                <select class="filter-select" id="statusFilter" onchange="filterAlerts()">
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="resolved">Resolved</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Vehicle:</label>
+                <select class="filter-select" id="vehicleFilter" onchange="filterAlerts()">
+                    <option value="all">All Vehicles</option>
+                    <option value="GJ-01-AB-1234">GJ-01-AB-1234</option>
+                    <option value="GJ-01-CD-5678">GJ-01-CD-5678</option>
+                    <option value="GJ-01-EF-9012">GJ-01-EF-9012</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- ALERTS LIST -->
+        <section class="alerts-section" id="alertsContainer">
+            <!-- Generated by JS -->
+        </section>
+
+        <!-- ALERT SETTINGS -->
+        <section class="settings-section">
+            <div class="settings-card">
+                <h3><i class="fas fa-sliders-h"></i> Alert Threshold Settings</h3>
+                
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <h4>Low Fuel Warning</h4>
+                        <p>Alert when fuel drops below threshold</p>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <input type="number" class="threshold-input" value="20" id="lowFuelThreshold">%
+                        <label class="toggle-switch" style="margin-left: 15px;">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <h4>Sudden Drop Detection</h4>
+                        <p>Alert when fuel drops more than threshold in 10 min</p>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <input type="number" class="threshold-input" value="10" id="suddenDropThreshold">L
+                        <label class="toggle-switch" style="margin-left: 15px;">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <h4>Fuel Theft Alert</h4>
+                        <p>Alert when fuel decreases while vehicle is stopped</p>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <input type="number" class="threshold-input" value="5" id="theftThreshold">L
+                        <label class="toggle-switch" style="margin-left: 15px;">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <h4>Email Notifications</h4>
+                        <p>Send email alerts to admin</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <h4>SMS Notifications</h4>
+                        <p>Send SMS alerts to driver</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div style="margin-top: 20px; text-align: right;">
+                    <button class="btn btn-primary" onclick="saveSettings()"><i class="fas fa-save"></i> Save Settings</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- TOAST -->
+    <div id="toast" style="position: fixed; bottom: 25px; right: 25px; background: #333; color: white; padding: 12px 20px; border-radius: 10px; display: none; align-items: center; gap: 10px; z-index: 2000;">
+        <i class="fas fa-check-circle" style="color: var(--success);"></i>
+        <span id="toastMessage">Operation successful!</span>
+    </div>
+
+    <script>
+        // ========== SIDEBAR ==========
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const icon = document.getElementById('toggleIcon');
+            sidebar.classList.toggle('collapsed');
+            icon.classList.toggle('fa-chevron-left');
+            icon.classList.toggle('fa-chevron-right');
+        }
+
+        // ========== ALERTS DATA ==========
+        const alerts = [
+            { id: 1, type: 'theft', title: 'Fuel Theft Detected', message: 'Fuel level dropped by 15L while vehicle was parked at Ahmedabad Warehouse. Possible theft detected.', vehicle: 'GJ-01-AB-1234', driver: 'Rajesh Patel', time: '2 min ago', location: 'Ahmedabad Warehouse', status: 'active', fuelDrop: '15L', duration: 'Parked 2 hours' },
+            { id: 2, type: 'low', title: 'Low Fuel Warning', message: 'Fuel level is at 12% (7L remaining). Vehicle needs refueling soon.', vehicle: 'GJ-01-EF-9012', driver: 'Suresh Kumar', time: '15 min ago', location: 'Highway NH-8', status: 'active', fuelDrop: '12%', duration: 'Running' },
+            { id: 3, type: 'sudden', title: 'Sudden Fuel Drop', message: 'Fuel level dropped by 8L in last 10 minutes. Possible leak or sensor issue.', vehicle: 'GJ-01-CD-5678', driver: 'Mahesh Sharma', time: '32 min ago', location: 'Surat City Center', status: 'active', fuelDrop: '8L', duration: 'Running' },
+            { id: 4, type: 'leak', title: 'Fuel Leak Detected', message: 'Consistent fuel decrease detected while engine is off. Possible fuel leak.', vehicle: 'GJ-01-GH-3456', driver: 'Amit Desai', time: '1 hour ago', location: 'Vadodara Depot', status: 'resolved', fuelDrop: '3L', duration: 'Parked 5 hours' },
+            { id: 5, type: 'theft', title: 'Fuel Theft Detected', message: 'Fuel level dropped by 12L during night parking at Surat Terminal.', vehicle: 'GJ-01-IJ-7890', driver: 'Vikram Singh', time: '3 hours ago', location: 'Surat Terminal', status: 'resolved', fuelDrop: '12L', duration: 'Parked 8 hours' },
+            { id: 6, type: 'low', title: 'Low Fuel Warning', message: 'Fuel level critical at 8% (4L remaining). Immediate refueling required.', vehicle: 'GJ-01-KL-1234', driver: 'Kiran Joshi', time: '45 min ago', location: 'Ahmedabad Ring Road', status: 'active', fuelDrop: '8%', duration: 'Running' },
+        ];
+
+        // ========== RENDER ALERTS ==========
+        function renderAlerts(data = alerts) {
+            const container = document.getElementById('alertsContainer');
+            container.innerHTML = '';
+
+            data.forEach(alert => {
+                const card = document.createElement('div');
+                card.className = `alert-card ${alert.type}`;
+                
+                let iconClass, badgeClass, badgeText;
+                switch(alert.type) {
+                    case 'theft': iconClass = 'theft'; badgeClass = 'badge-danger'; badgeText = 'THEFT'; break;
+                    case 'low': iconClass = 'low'; badgeClass = 'badge-warning'; badgeText = 'LOW FUEL'; break;
+                    case 'sudden': iconClass = 'sudden'; badgeClass = 'badge-info'; badgeText = 'SUDDEN DROP'; break;
+                    case 'leak': iconClass = 'leak'; badgeClass = 'badge-purple'; badgeText = 'LEAK'; break;
+                }
+
+                const iconMap = { theft: 'fa-user-secret', low: 'fa-gas-pump', sudden: 'fa-chart-line', leak: 'fa-tint' };
+
+                card.innerHTML = `
+                    <div class="alert-icon ${iconClass}"><i class="fas ${iconMap[alert.type]}"></i></div>
+                    <div class="alert-content">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <h4>${alert.title}</h4>
+                            <span class="badge ${badgeClass}">${badgeText}</span>
+                        </div>
+                        <p>${alert.message}</p>
+                        <div class="alert-meta">
+                            <span><i class="fas fa-car"></i> ${alert.vehicle}</span>
+                            <span><i class="fas fa-user"></i> ${alert.driver}</span>
+                            <span><i class="fas fa-clock"></i> ${alert.time}</span>
+                            <span><i class="fas fa-map-marker-alt"></i> ${alert.location}</span>
+                            <span><i class="fas fa-tint"></i> Drop: ${alert.fuelDrop}</span>
+                        </div>
+                    </div>
+                    <div class="alert-actions">
+                        ${alert.status === 'active' ? 
+                            `<button class="btn btn-success" onclick="resolveAlert(${alert.id})"><i class="fas fa-check"></i> Resolve</button>
+                             <button class="btn btn-outline" onclick="viewDetails(${alert.id})"><i class="fas fa-eye"></i></button>` :
+                            `<button class="btn btn-outline" disabled><i class="fas fa-check-circle"></i> Resolved</button>`
+                        }
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // ========== FILTER ==========
+        function filterAlerts() {
+            const type = document.getElementById('typeFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            const vehicle = document.getElementById('vehicleFilter').value;
+
+            const filtered = alerts.filter(a => {
+                const matchType = type === 'all' || a.type === type;
+                const matchStatus = status === 'all' || a.status === status;
+                const matchVehicle = vehicle === 'all' || a.vehicle === vehicle;
+                return matchType && matchStatus && matchVehicle;
+            });
+
+            renderAlerts(filtered);
+        }
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = alerts.filter(a => 
+                a.title.toLowerCase().includes(term) || 
+                a.vehicle.toLowerCase().includes(term) ||
+                a.driver.toLowerCase().includes(term)
+            );
+            renderAlerts(filtered);
+        });
+
+        // ========== ACTIONS ==========
+        function resolveAlert(id) {
+            const alert = alerts.find(a => a.id === id);
+            if (alert) {
+                alert.status = 'resolved';
+                alert.time = 'Just now';
+                renderAlerts();
+                showToast(`Alert resolved: ${alert.title}`);
+            }
+        }
+
+        function viewDetails(id) {
+            const alert = alerts.find(a => a.id === id);
+            showToast(`Viewing details for ${alert.vehicle}`);
+        }
+
+        function markAllRead() {
+            alerts.forEach(a => a.status = 'resolved');
+            renderAlerts();
+            showToast('All alerts marked as resolved');
+        }
+
+        function saveSettings() {
+            const lowFuel = document.getElementById('lowFuelThreshold').value;
+            const suddenDrop = document.getElementById('suddenDropThreshold').value;
+            const theft = document.getElementById('theftThreshold').value;
+            showToast(`Settings saved: Low Fuel ${lowFuel}%, Sudden Drop ${suddenDrop}L, Theft ${theft}L`);
+        }
+
+        // ========== TOAST ==========
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').textContent = message;
+            toast.style.display = 'flex';
+            setTimeout(() => toast.style.display = 'none', 3000);
+        }
+
+        // ========== INIT ==========
+        renderAlerts();
+    </script>
+</body>
+</html>
