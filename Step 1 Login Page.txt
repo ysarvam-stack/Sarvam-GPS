@@ -1,0 +1,399 @@
+<!-- login.html -->
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Sarvam Automation - GPS Tracking</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(15,52,96,0.3) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: moveGrid 20s linear infinite;
+            opacity: 0.5;
+        }
+        
+        @keyframes moveGrid {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+        
+        .login-container {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 50px 45px;
+            width: 420px;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+        }
+        
+        .logo-section {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+        
+        .logo-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            box-shadow: 0 10px 30px rgba(233,69,96,0.3);
+        }
+        
+        .logo-icon i { font-size: 36px; color: white; }
+        
+        .logo-section h1 {
+            color: white;
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        
+        .logo-section p {
+            color: rgba(255,255,255,0.5);
+            font-size: 13px;
+            margin-top: 5px;
+        }
+        
+        .form-group {
+            margin-bottom: 22px;
+            position: relative;
+        }
+        
+        .form-group label {
+            display: block;
+            color: rgba(255,255,255,0.7);
+            font-size: 13px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .input-wrapper {
+            position: relative;
+        }
+        
+        .input-wrapper i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255,255,255,0.4);
+            font-size: 16px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px 14px 48px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            color: white;
+            font-size: 15px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        
+        .form-group input:focus {
+            border-color: #e94560;
+            background: rgba(255,255,255,0.12);
+            box-shadow: 0 0 20px rgba(233,69,96,0.15);
+        }
+        
+        .form-group input::placeholder {
+            color: rgba(255,255,255,0.3);
+        }
+        
+        .toggle-password {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255,255,255,0.4);
+            cursor: pointer;
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+        
+        .toggle-password:hover { color: #e94560; }
+        
+        .remember-forgot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        
+        .remember {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255,255,255,0.6);
+            font-size: 13px;
+            cursor: pointer;
+        }
+        
+        .remember input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #e94560;
+            cursor: pointer;
+        }
+        
+        .forgot-link {
+            color: #e94560;
+            font-size: 13px;
+            text-decoration: none;
+            transition: opacity 0.3s;
+        }
+        
+        .forgot-link:hover { opacity: 0.8; }
+        
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #e94560, #c73e54);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px rgba(233,69,96,0.3);
+        }
+        
+        .login-btn:active { transform: translateY(0); }
+        
+        .login-btn .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        
+        .login-btn.loading .spinner { display: inline-block; }
+        .login-btn.loading .btn-text { display: none; }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .footer-text {
+            text-align: center;
+            margin-top: 30px;
+            color: rgba(255,255,255,0.35);
+            font-size: 12px;
+        }
+        
+        .footer-text a {
+            color: rgba(255,255,255,0.5);
+            text-decoration: none;
+        }
+        
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            transform: translateX(400px);
+            transition: transform 0.4s ease;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .toast.show { transform: translateX(0); }
+        .toast.error { background: #e94560; }
+        .toast.success { background: #2ecc71; }
+        
+        /* Floating particles */
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(233,69,96,0.4);
+            border-radius: 50%;
+            animation: float 15s infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
+        }
+        
+        @media (max-width: 480px) {
+            .login-container {
+                width: 90%;
+                padding: 35px 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating particles -->
+    <div class="particle" style="left:10%;animation-delay:0s;"></div>
+    <div class="particle" style="left:20%;animation-delay:2s;"></div>
+    <div class="particle" style="left:30%;animation-delay:4s;"></div>
+    <div class="particle" style="left:40%;animation-delay:1s;"></div>
+    <div class="particle" style="left:50%;animation-delay:3s;"></div>
+    <div class="particle" style="left:60%;animation-delay:5s;"></div>
+    <div class="particle" style="left:70%;animation-delay:2.5s;"></div>
+    <div class="particle" style="left:80%;animation-delay:4.5s;"></div>
+    <div class="particle" style="left:90%;animation-delay:1.5s;"></div>
+
+    <div class="login-container">
+        <div class="logo-section">
+            <div class="logo-icon">
+                <i class="fas fa-satellite-dish"></i>
+            </div>
+            <h1>Sarvam Automation</h1>
+            <p>GPS Vehicle Tracking System</p>
+        </div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">User ID / Email</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="email" placeholder="Enter your user ID" required autocomplete="username">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="password" placeholder="Enter your password" required autocomplete="current-password">
+                    <i class="fas fa-eye toggle-password" id="togglePassword"></i>
+                </div>
+            </div>
+            
+            <div class="remember-forgot">
+                <label class="remember">
+                    <input type="checkbox" id="rememberMe">
+                    <span>Remember me</span>
+                </label>
+                <a href="#" class="forgot-link">Forgot Password?</a>
+            </div>
+            
+            <button type="submit" class="login-btn" id="loginBtn">
+                <span class="spinner"></span>
+                <span class="btn-text">Sign In</span>
+            </button>
+        </form>
+        
+        <div class="footer-text">
+            <p>Powered by <a href="#">Sarvam Automation</a> &copy; 2026</p>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Toggle password visibility
+        document.getElementById('togglePassword').addEventListener('click', function() {
+            const passwordInput = document.getElementById('password');
+            const type = passwordInput.type === 'password' ? 'text' : 'password';
+            passwordInput.type = type;
+            this.classList.toggle('fa-eye');
+            this.classList.toggle('fa-eye-slash');
+        });
+        
+        // Show toast
+        function showToast(message, type = 'error') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+        
+        // Login form submit
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const rememberMe = document.getElementById('rememberMe').checked;
+            const btn = document.getElementById('loginBtn');
+            
+            if (!email || !password) {
+                showToast('Please fill in all fields');
+                return;
+            }
+            
+            btn.classList.add('loading');
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, rememberMe })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    localStorage.setItem('sarvam_token', data.token);
+                    localStorage.setItem('sarvam_user', JSON.stringify(data.user));
+                    showToast('Login successful! Redirecting...', 'success');
+                    setTimeout(() => window.location.href = 'dashboard.html', 1000);
+                } else {
+                    showToast(data.message || 'Invalid credentials');
+                }
+            } catch (error) {
+                showToast('Network error. Please try again.');
+            } finally {
+                btn.classList.remove('loading');
+            }
+        });
+        
+        // Check if already logged in
+        if (localStorage.getItem('sarvam_token')) {
+            window.location.href = 'dashboard.html';
+        }
+    </script>
+</body>
+</html>
